@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+*.egg
+env/
+venv/
+venv*/
+.Python
+
+# IDEs / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# env files
+.env
+*.env
+
+# DB / data
+*.sqlite3
+*.db
+
+# logs
+*.log
+
+# node
+node_modules/
+
+# selenium webdriver caches, etc
+.chromedriver/

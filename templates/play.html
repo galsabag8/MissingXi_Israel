@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>חידת הטופ 10 היומית</title>
+    <style>
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Helvetica Neue', Arial, 'Noto Sans', 'Apple Color Emoji', 'Segoe UI Emoji'; margin: 24px; text-align: right; }
+      .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; justify-content: flex-start; }
+      .slot { border: 1px solid #ddd; border-radius: 8px; padding: 8px 12px; min-width: 160px; background: #fafafa; display: flex; align-items: center; gap: 8px; }
+      .slot img { width: 40px; height: 40px; object-fit: cover; border-radius: 50%; border: 1px solid #e0e0e0; }
+      .revealed { background: #e7ffe7; border-color: #9cd39c; }
+      .controls { margin-top: 16px; display: flex; gap: 8px; }
+      input[type="text"] { padding: 8px; border-radius: 6px; border: 1px solid #ccc; width: 280px; direction: rtl; }
+      button { padding: 8px 12px; border-radius: 6px; border: 1px solid #222; background: #222; color: #fff; cursor: pointer; }
+      button.secondary { background: #fff; color: #222; }
+      .status { margin-top: 12px; min-height: 24px; }
+    </style>
+  </head>
+  <body>
+    <h1>חידת הטופ 10 היומית</h1>
+    <div id="meta"></div>
+
+    <div class="controls">
+      <div style="position: relative;">
+        <input id="guess" type="text" placeholder="הקלידו שם ולחצו ניחוש" autocomplete="off" />
+        <div id="suggestions" style="position:absolute; right:0; left:0; background:#fff; border:1px solid #ccc; border-radius:6px; margin-top:4px; display:none; max-height:220px; overflow:auto; z-index:10;"></div>
+      </div>
+      <button id="guessBtn">ניחוש</button>
+      <button id="startBtn" class="secondary">התחילו / אפסו להיום</button>
+    </div>
+    <div class="status" id="status"></div>
+
+    <div class="row" id="board"></div>
+
+    <script>
+      const board = document.getElementById('board');
+      const meta = document.getElementById('meta');
+      const statusEl = document.getElementById('status');
+      const guessInput = document.getElementById('guess');
+      const guessBtn = document.getElementById('guessBtn');
+      const startBtn = document.getElementById('startBtn');
+      const suggestions = document.getElementById('suggestions');
+
+      function renderState(state) {
+        if (!state || state.error) {
+          meta.textContent = state?.error || 'אין מצב נוכחי';
+          board.innerHTML = '';
+          return;
+        }
+        meta.textContent = `${state.category} — ${state.riddle_date}`;
+        board.innerHTML = '';
+        const exposed = state.exposed || [];
+        const images = state.images || [];
+        for (let i = 0; i < Math.max(10, exposed.length); i++) {
+          const slot = document.createElement('div');
+          slot.className = 'slot' + (exposed[i] ? ' revealed' : '');
+          if (exposed[i] && images[i]) {
+            const img = document.createElement('img');
+            img.src = images[i];
+            img.alt = exposed[i];
+            slot.appendChild(img);
+          }
+          const label = document.createElement('div');
+          label.textContent = `#${i+1}` + (exposed[i] ? ` ${exposed[i]}` : '');
+          slot.appendChild(label);
+          board.appendChild(slot);
+        }
+      }
+
+      async function startGame() {
+        statusEl.textContent = 'מתחילים…';
+        const res = await fetch('/start_game');
+        const data = await res.json();
+        statusEl.textContent = 'המשחק התחיל!';
+        renderState({ category: data.category, riddle_date: data.riddle_date, exposed: data.exposed, images: data.images });
+      }
+
+      async function getState() {
+        const res = await fetch('/state');
+        const data = await res.json();
+        renderState(data);
+      }
+
+      function translateMessage(data) {
+        if (data.finished && data.correct) return 'כל הכבוד! חשפתם את כל התשובות! 🎉';
+        if (data.correct) return 'נכון!';
+        if (data.rank && !data.correct) return 'התשובה כבר נחשפה.';
+        return 'לא נכון, נסו שוב!';
+      }
+
+      async function guess() {
+        const player = guessInput.value.trim();
+        if (!player) return;
+        const res = await fetch('/guess', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ player })
+        });
+        const data = await res.json();
+        statusEl.textContent = translateMessage(data);
+        renderState({ category: data.category || meta.textContent.split(' — ')[0], riddle_date: data.riddle_date, exposed: data.exposed, images: data.images });
+        if (data.finished) {
+          guessBtn.disabled = true;
+          guessInput.disabled = true;
+        }
+        guessInput.value = '';
+        guessInput.focus();
+      }
+
+      function hideSuggestions() {
+        suggestions.style.display = 'none';
+        suggestions.innerHTML = '';
+      }
+
+      function showSuggestions(items) {
+        if (!items || (!items.players?.length && !items.teams?.length)) {
+          hideSuggestions();
+          return;
+        }
+        suggestions.innerHTML = '';
+        const makeGroup = (title, arr) => {
+          if (!arr || !arr.length) return;
+          const header = document.createElement('div');
+          header.textContent = title;
+          header.style.cssText = 'padding:6px 10px; font-weight:600; background:#f6f6f6; border-bottom:1px solid #eee;';
+          suggestions.appendChild(header);
+          arr.forEach(it => {
+            const row = document.createElement('div');
+            row.textContent = it.name;
+            row.style.cssText = 'padding:8px 10px; cursor:pointer;';
+            row.addEventListener('mouseenter', () => row.style.background = '#f2f2f2');
+            row.addEventListener('mouseleave', () => row.style.background = '');
+            row.addEventListener('click', () => {
+              guessInput.value = it.name;
+              hideSuggestions();
+              guessInput.focus();
+            });
+            suggestions.appendChild(row);
+          });
+        };
+        makeGroup('שחקנים', items.players);
+        makeGroup('קבוצות', items.teams);
+        suggestions.style.display = 'block';
+      }
+
+      let searchTimer = null;
+      guessInput.addEventListener('input', () => {
+        const q = guessInput.value.trim();
+        if (q.length < 3) { hideSuggestions(); return; }
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(async () => {
+          try {
+            const res = await fetch('/search?q=' + encodeURIComponent(q));
+            const data = await res.json();
+            showSuggestions(data);
+          } catch (e) {
+            hideSuggestions();
+          }
+        }, 200);
+      });
+
+      document.addEventListener('click', (e) => {
+        if (!suggestions.contains(e.target) && e.target !== guessInput) {
+          hideSuggestions();
+        }
+      });
+
+      guessBtn.addEventListener('click', guess);
+      guessInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') guess(); });
+      startBtn.addEventListener('click', startGame);
+
+      // Load current state on page open
+      getState();
+    </script>
+  </body>
+  </html>
+
