@@ -3,21 +3,35 @@ import os
 from datetime import datetime, timezone
 from flask_sqlalchemy import SQLAlchemy
 from models import db, Player, Team
-
 from game_logic import load_daily_riddle, check_guess, get_game_state
 
 app = Flask(__name__)
-app.secret_key = os.getenv("SECRET_KEY", "super_secret_key")
 
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv(
-    'DATABASE_URL',
-    'postgresql://galsabag:Sabigo11!!@localhost/Top10Game'
+# Secret key (required for sessions)
+# In production, set this in Render's environment variables
+app.secret_key = os.getenv("SECRET_KEY")
+if not app.secret_key:
+    raise ValueError("SECRET_KEY environment variable not set!")
+
+# Database config
+# DATABASE_URL should be set in Render environment variables
+# Fallback to local dev DB if running locally
+database_url = os.getenv("DATABASE_URL")
+if not database_url:
+    database_url = "postgresql://postgres:password@localhost:5432/top10game"
+app.config["SQLALCHEMY_DATABASE_URI"] = database_url
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+# Session config
+app.config["PERMANENT_SESSION_LIFETIME"] = int(
+    os.getenv("SESSION_TTL_SECONDS", str(7 * 24 * 60 * 60))
 )
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['PERMANENT_SESSION_LIFETIME'] = int(os.getenv('SESSION_TTL_SECONDS', str(7 * 24 * 60 * 60)))
-app.config['SESSION_COOKIE_SAMESITE'] = os.getenv('SESSION_COOKIE_SAMESITE', 'Lax')
-app.config['SESSION_COOKIE_SECURE'] = os.getenv('SESSION_COOKIE_SECURE', 'False').lower() == 'true'
+app.config["SESSION_COOKIE_SAMESITE"] = os.getenv("SESSION_COOKIE_SAMESITE", "Lax")
+app.config["SESSION_COOKIE_SECURE"] = (
+    os.getenv("SESSION_COOKIE_SECURE", "False").lower() == "true"
+)
 
+# Initialize SQLAlchemy
 db.init_app(app)
 
 # -----------------------------
@@ -37,7 +51,7 @@ def _make_session_permanent():
 def about():
     return "זה יהיה משחק הטופ 10 בכדורגל הישראלי."
 
-@app.route("/play")
+@app.route("/play_temp")
 def play():
     return render_template("play_temp.html")
 
