@@ -1,5 +1,4 @@
-from models import db, Team, PlayerSeasonStats  # or other related models
-from app import app
+import json
 team_mapping = {"מ.ס. אשדוד": "מועדון ספורט אשדוד",
                     "בני יהודה ת\"א": "בני יהודה תל אביב",
                     "מכבי הרצליה דיוויד יחזקאל": "מכבי הרצליה",
@@ -38,11 +37,21 @@ team_mapping = {"מ.ס. אשדוד": "מועדון ספורט אשדוד",
 } 
     
 
-with app.app_context():
-    for dup_name, canonical_name in team_mapping.items():
-        print("removing:",dup_name)
-        duplicate_team = Team.query.filter_by(team_name=dup_name).first()
-        if not duplicate_team:
-            continue
-        db.session.delete(duplicate_team)
-    db.session.commit()
+with open("seasons.json", "r", encoding="utf-8") as f:
+    data = json.load(f)
+
+for season,season_data in data.items():
+    for fixture_id,games in season_data["games"].items():
+        for game in games:
+            if game["home team"]["name"] in team_mapping:
+                #print("home",game["home team"]["name"])
+                game["home team"]["name"] = team_mapping[game["home team"]["name"]]
+            
+            if game["away team"]["name"] in team_mapping:
+                #print("away:",game["away team"]["name"])
+                game["away team"]["name"] = team_mapping[game["away team"]["name"]]
+
+
+with open("seasons.json", "w", encoding="utf-8") as f:
+    json.dump(data, f, ensure_ascii=False, indent=2)
+

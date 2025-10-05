@@ -6,6 +6,7 @@ class Team(db.Model):
     __tablename__ = "teams"
     id = db.Column(db.Integer, primary_key=True)
     team_name = db.Column(db.String(100), nullable=True)
+    team_img_url = db.Column(db.String(200),nullable=True)
     # unique=True → no duplicate team names
 
 
@@ -14,6 +15,8 @@ class Player(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     player_name =db.Column(db.String(100), nullable=False)
     player_image_url = db.Column(db.String(300), nullable=True)
+    position = db.Column(db.String(100), nullable=True)
+    english_name = db.Column(db.String(100), nullable=True)
 
     # If you want to allow duplicate names (e.g. 2 "David Cohen"s), 
     # don’t set unique=True here. Each will differ by team_id or id.
