@@ -3,7 +3,8 @@ import os
 from datetime import datetime, timezone
 from flask_sqlalchemy import SQLAlchemy
 from models import db, Player, Team
-from game_logic import load_daily_riddle, check_guess, get_game_state
+# Import the new game logic functions (start_new_game, check_guess, get_game_state)
+from game_logic import start_new_game, check_guess, get_game_state 
 
 app = Flask(__name__)
 
@@ -11,6 +12,7 @@ app = Flask(__name__)
 # In production, set this in Render's environment variables
 app.secret_key = os.getenv("SECRET_KEY")
 if not app.secret_key:
+    # NOTE: Set a strong SECRET_KEY in your environment variables for production!
     raise ValueError("SECRET_KEY environment variable not set!")
 
 # Database config
@@ -18,7 +20,8 @@ if not app.secret_key:
 # Fallback to local dev DB if running locally
 database_url = os.getenv("DATABASE_URL")
 if not database_url:
-    database_url = "postgresql://postgres:password@localhost:5432/top10game"
+    # NOTE: Remember to remove this exposed local DB URI before any final push!
+    database_url = "postgresql://postgres:password@localhost:5432/top10game" 
 app.config["SQLALCHEMY_DATABASE_URI"] = database_url
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
@@ -40,7 +43,7 @@ db.init_app(app)
 
 @app.route("/")
 def home():
-    return "שלום, זה האתר שלי!"
+    return "Hello, this is my site!"
 
 
 @app.before_request
@@ -49,46 +52,56 @@ def _make_session_permanent():
 
 @app.route("/about")
 def about():
-    return "זה יהיה משחק הטופ 10 בכדורגל הישראלי."
+    # Updated text for the new game concept
+    return "This is a prediction game based on Israeli soccer data and starting lineups."
 
-@app.route("/play_temp")
+@app.route("/play")
 def play():
+    # Renders the HTML file we created (play_temp.html)
     return render_template("play_temp.html")
+
+# New Game Endpoints:
 
 @app.route("/start_game", methods=["GET"])
 def start_game():
-    riddle = load_daily_riddle()
-    if "error" in riddle:
-        return jsonify(riddle), 400
-    today_iso = datetime.now(timezone.utc).date().isoformat()
-    exposed_key = f"exposed:{today_iso}"
-    finished_key = f"finished:{today_iso}"
-    session[exposed_key] = [0] * len(riddle["answers"])
-    session[finished_key] = False
-    return jsonify({
-        "message": "Game started!",
-        "riddle_date": riddle["riddle_date"],
-        "category": riddle["category"],
-        "exposed": session[exposed_key],
-        "finished": session[finished_key]
-    })
+    """
+    Starts a new game session by choosing a random match and lineup.
+    """
+    game_state = start_new_game()
+    if "error" in game_state:
+        # Returns 400 if no matches or lineups are found in the database
+        return jsonify(game_state), 400
+    
+    return jsonify(game_state)
 
 @app.route("/guess", methods=["POST"])
 def guess():
+    """
+    Submits a player guess and checks it against the lineup for a specific slot.
+    """
     data = request.json
     player_guess = data.get("player")
-    if not player_guess:
-        return jsonify({"error": "No player submitted."}), 400
+    slot_index = data.get("slot_index") # NEW: Receive the target slot index (1-based)
 
-    result = check_guess(player_guess)
+    if not player_guess:
+        return jsonify({"error": "No player name submitted."}), 400
+    if not isinstance(slot_index, int) or slot_index < 1 or slot_index > 11:
+         return jsonify({"error": "Invalid slot index submitted."}), 400
+
+    # Pass BOTH the index and the guess to the updated check_guess function
+    result = check_guess(slot_index=slot_index, player_guess=player_guess)
     return jsonify(result)
 
 @app.route("/state", methods=["GET"])
 def state():
     """
-    Returns current game state for this user
+    Returns current game state for this user (including exposed players and metadata).
     """
     result = get_game_state()
+    if "error" in result:
+        # If no game is active, prompt the user to start one
+        return jsonify(result), 400
+        
     return jsonify(result)
 
 @app.route("/search", methods=["GET"])
@@ -101,7 +114,7 @@ def search():
     if len(q) < 3:
         return jsonify({"players": [], "teams": []})
 
-    # Case-insensitive contains search; for Hebrew consider adding unaccent/normalization later
+    # Case-insensitive contains search
     pattern = f"%{q}%"
     players = Player.query.filter(
         (Player.player_name.ilike(pattern)) 

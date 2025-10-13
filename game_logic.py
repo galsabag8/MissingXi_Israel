@@ -1,165 +1,237 @@
 
-# game_logic.py
+import random
 from flask import session
 from datetime import datetime, timezone
-from models import db, Category, PlayerAnswer, TeamAnswer, DailyRiddle
+from sqlalchemy import func
+from models import TeamFormation, db, Match, MatchLineup, Player, Team,MatchEvent # Note: Old riddle models removed!
 
-_daily_riddle = None
-
+# Session Keys
+GAME_SESSION_KEY = "current_game_lineup"
+EXPOSED_PLAYERS_KEY = "exposed_players"
 
 def _utc_today():
+    """Returns today's date (UTC)"""
     return datetime.now(timezone.utc).date()
 
-
-def _session_key(prefix):
-    return f"{prefix}:{_utc_today().isoformat()}"
-
-def load_daily_riddle():
+def _get_game_data():
     """
-    Get or create today's daily riddle (UTC), persisted in DB.
-    Ensures all users share the same daily riddle.
+    Fetches a random match, selects a random team, and retrieves the starting lineup.
     """
-    global _daily_riddle
-    today = _utc_today()
-
-    if _daily_riddle and _daily_riddle.get("riddle_date") == today.isoformat():
-        return _daily_riddle
-
-    daily = DailyRiddle.query.filter_by(riddle_date=today).first()
-    if not daily:
-        category = Category.query.order_by(db.func.random()).first()
-        if not category:
-            return {"error": "No categories left in DB."}
-        daily = DailyRiddle(riddle_date=today, category_id=category.id)
-        db.session.add(daily)
-        db.session.commit()
-
-    category = daily.category
-
-    # Prefer whichever answer set exists; if both, prefer the one with 10 entries
-    player_answers = PlayerAnswer.query.filter_by(category_id=category.id).all()
-    team_answers = TeamAnswer.query.filter_by(category_id=category.id).all()
-
-    answers_dict = {}
-    images_dict = {}
-    chosen = None
-    if len(team_answers) >= len(player_answers):
-        chosen = team_answers if team_answers else player_answers
-        for ans in chosen:
-            if hasattr(ans, "team") and ans.team is not None:
-                answers_dict[ans.rank] = ans.team.team_name
-                images_dict[ans.rank] = getattr(ans.team, "team_image_url", None)
-            else:
-                answers_dict[ans.rank] = ans.player.player_name
-                images_dict[ans.rank] = getattr(ans.player, "player_image_url", None)
+    # 1. Get a random Match object
+    # Requires MatchLineup table to be seeded with data.
+    match_obj = db.session.execute(db.select(Match).order_by(func.random())).scalars().first()
+    
+    if not match_obj:
+        return {"error": "No matches found in the database. Please seed data."}
+    
+    # 2. Randomly select the target team (Home or Away)
+    if random.choice([True, False]):
+        target_team_id = match_obj.home_team_id
+        target_team_name = match_obj.home_team.team_name
     else:
-        chosen = player_answers
-        for ans in chosen:
-            answers_dict[ans.rank] = ans.player.player_name
-            images_dict[ans.rank] = getattr(ans.player, "player_image_url", None)
-    print(images_dict)
+        target_team_id = match_obj.away_team_id
+        target_team_name = match_obj.away_team.team_name
 
-    _daily_riddle = {
-        "riddle_date": today.isoformat(),
-        "category": category.category_title,
-        "answers": answers_dict,
-        "images": images_dict
+    # 3. Get the starting lineup (MatchLineup joined to Player)
+    formation_record = db.session.execute(
+        db.select(TeamFormation).filter_by(match_id=match_obj.id, team_id=target_team_id)
+    ).scalar_one_or_none()
+    
+    team_formation_str = formation_record.formation if formation_record else "N/A"
+    lineup_query = db.session.execute(
+        db.select(MatchLineup)
+        .filter_by(match_id=match_obj.id, team_id=target_team_id)
+        .join(Player)
+        .limit(11) 
+    ).scalars().all()
+
+    # 4. Format the data for the session
+    lineup_data = []
+    for line in lineup_query:
+        # We must ensure all related Player data is present (name, position, image)
+        if line.player:
+            player_events = db.session.execute(
+                db.select(MatchEvent).filter_by(match_id=match_obj.id,player_id=line.player.id)).scalars().all()
+            lineup_data.append({
+                "id": line.player.id,
+                "name": line.player.player_name,
+                "position": line.player.position,
+                "img_url": line.player.player_image_url,
+                "player_stats":[event.event_type for event in player_events]
+                
+            })
+        
+    if len(lineup_data) < 1:
+        return {"error": f"No lineup data found for Match ID {match_obj.id}. Skipping match."}
+
+
+    return {
+        "match_id": match_obj.id,
+        "match_date": match_obj.date.isoformat(),
+        "competition": match_obj.competition,
+        "home_team_name": match_obj.home_team.team_name,
+        "away_team_name":match_obj.away_team.team_name,
+        "target_team_name":target_team_name,
+        "lineup": lineup_data, # List of player dictionaries
+        "lineup_count": len(lineup_data),
+        "team_formation":team_formation_str
     }
-    return _daily_riddle
 
-def check_guess(player_guess):
+def start_new_game():
+    """Initializes a new game session with a random match lineup."""
+    game_data = _get_game_data()
+    
+    if "error" in game_data:
+        return game_data
+    
+    # Save the match and lineup details to the session
+    session[GAME_SESSION_KEY] = game_data
+    
+    # Initialize the exposed state: an array of False values matching the lineup size
+    session[EXPOSED_PLAYERS_KEY] = [False] * game_data['lineup_count'] 
+    
+    return get_game_state()
+
+def _normalize_name(name: str):
+    """Normalizes names by converting to lowercase and stripping spaces."""
+    # We remove spaces to simplify letter comparison for Wordle-style feedback
+    return name.strip().lower().replace(' ', '')
+
+def _get_feedback(correct_name: str, guess: str):
     """
-    Check if the player's guess is correct and update their session state.
+    Compares the normalized guess to the normalized correct name and generates Wordle-style feedback.
+    Feedback: 2 (Correct position), 1 (Correct letter, wrong position), 0 (Incorrect).
     """
-    riddle = load_daily_riddle()
-    if "error" in riddle:
-        return riddle
+    
+    # Normalize both the guess and the correct name (no spaces, lowercase)
+    target = _normalize_name(correct_name)
+    normalized_guess = _normalize_name(guess)
+    
+    feedback = [0] * len(normalized_guess)
+    target_list = list(target)
+    
+    # Clip the guess length to the target name length for comparison
+    max_len = min(len(normalized_guess), len(target))
+    
+    # 1. Check for GREEN (Correct letter and correct position)
+    for i in range(max_len):
+        if normalized_guess[i] == target[i]:
+            feedback[i] = 2 # Green
+            target_list[i] = None # Mark letter as used
+            
+    # 2. Check for YELLOW (Correct letter, wrong position)
+    for i in range(max_len):
+        if feedback[i] == 0: # Only check letters not yet marked as GREEN
+            if normalized_guess[i] in target_list:
+                feedback[i] = 1 # Yellow
+                # Find and mark the letter as used in the target_list
+                try:
+                    target_index = target_list.index(normalized_guess[i])
+                    target_list[target_index] = None
+                except ValueError:
+                    pass # Should not happen if logic is correct, but safe guard
+                    
+    # Pad the feedback if the guess was shorter than the target name
+    if len(feedback) < len(target):
+         feedback.extend([0] * (len(target) - len(feedback)))
 
-    finished_key = _session_key("finished")
-    exposed_key = _session_key("exposed")
+    # Since the client needs feedback based on the guess length,
+    # we return the feedback list capped at the input guess length.
+    return feedback[:len(normalized_guess)]
 
-    if session.get(finished_key):
-        current_exposed = session.get(exposed_key, [""] * len(riddle["answers"]))
-        images = [riddle["images"].get(i+1) for i in range(len(riddle["answers"]))]
-        return {
-            "correct": False,
-            "rank": None,
-            "finished": True,
-            "riddle_date": riddle["riddle_date"],
-            "exposed": current_exposed,
-            "images": images,
-            "message": "Game already finished! 🎉"
-        }
+def check_guess(slot_index: int, player_guess: str):
+    """
+    Checks the player's guess against a specific slot in the lineup (1-based index).
+    Returns letter-by-letter feedback if the name is incorrect, or reveals the player if correct.
+    """
+    game_data = session.get(GAME_SESSION_KEY)
+    exposed = session.get(EXPOSED_PLAYERS_KEY)
+    
+    # Convert slot_index (1-based) to list index (0-based)
+    lineup_index = slot_index - 1
+    
+    if not game_data or not exposed:
+        return {"error": "No active game found. Please start a new game."}
+    
+    if exposed[lineup_index] is not False:
+        return get_game_state(message="Slot already revealed.")
+        
+    if lineup_index < 0 or lineup_index >= len(game_data['lineup']):
+        return {"error": "Invalid slot index provided."}
 
-    answers = riddle["answers"]
+    target_player = game_data['lineup'][lineup_index]
+    
+    # Check if the guess matches the name exactly (either Hebrew or English)
     normalized_guess = player_guess.strip().lower()
+    
+    # Check for perfect match first
+    perfect_match = (
+        normalized_guess == target_player['name'].lower().strip() or 
+        (target_player['eng_name'] and normalized_guess == target_player['eng_name'].lower().strip())
+    )
 
-    for rank, answer in answers.items():
-        # Match against English or Hebrew forms if present
-        answer_low = answer.lower()
-        if normalized_guess == answer_low:
-            exposed = session.get(exposed_key, [""] * len(answers))
-            if exposed[rank - 1]:
-                return {
-                    "correct": False,
-                    "rank": rank,
-                    "finished": False,
-                    "riddle_date": riddle["riddle_date"],
-                    "exposed": exposed,
-                    "images": [riddle["images"].get(i+1) for i in range(len(answers))],
-                    "message": "This answer was already revealed."
-                }
+    if perfect_match:
+        # Player found and is correct for this slot - REVEAL
+        exposed[lineup_index] = target_player['name'] # Mark as revealed with the name
+        session[EXPOSED_PLAYERS_KEY] = exposed
+        
+        message = f"Correct! {target_player['name']} revealed."
+        
+        # Check for win condition
+        if all(exposed):
+            message = "Congratulations! Lineup complete! 🎉"
+        
+        # Return the full state to update the entire game board
+        return get_game_state(message=message)
+        
+    else:
+        # Not a perfect match: Return Wordle-style feedback
+        feedback = _get_feedback(target_player['name'], player_guess)
+        
+        # Return the current state plus the specific feedback
+        state = get_game_state(message="Incorrect name. See letter feedback.")
+        state['feedback'] = {
+            "slot_index": slot_index,
+            "guess": player_guess,
+            "feedback": feedback # List of 2 (Green), 1 (Yellow), 0 (Gray)
+        }
+        return state
 
-            exposed[rank - 1] = normalized_guess
-            session[exposed_key] = exposed
-
-            if sum(1 for x in exposed if x) == len(answers):
-                session[finished_key] = True
-                return {
-                    "correct": True,
-                    "rank": rank,
-                    "finished": True,
-                    "riddle_date": riddle["riddle_date"],
-                    "exposed": exposed,
-                    "images": [riddle["images"].get(i+1) for i in range(len(answers))],
-                    "message": "Congratulations! You revealed all answers! 🎉"
-                }
-
-            return {
-                "correct": True,
-                "rank": rank,
-                "finished": False,
-                "riddle_date": riddle["riddle_date"],
-                "exposed": exposed,
-                "images": [riddle["images"].get(i+1) for i in range(len(answers))],
-                "message": "Correct guess!"
-            }
-
-    current_exposed = session.get(exposed_key, [""] * len(answers))
-    return {
-        "correct": False,
-        "rank": None,
-        "finished": False,
-        "riddle_date": riddle["riddle_date"],
-        "exposed": current_exposed,
-        "images": [riddle["images"].get(i+1) for i in range(len(answers))],
-        "message": "Wrong guess, try again!"
+def get_game_state(message: str = None):
+    """Returns the current game state and lineup presentation data."""
+    game_data = session.get(GAME_SESSION_KEY)
+    exposed = session.get(EXPOSED_PLAYERS_KEY)
+    
+    if not game_data or not exposed:
+        return {"error": "No active game found."}
+    
+    # Prepare the lineup array for the client
+    lineup_presentation = []
+    is_finished = all(exposed)
+    
+    for i, player in enumerate(game_data['lineup']):
+        is_revealed = bool(exposed[i])
+        
+        lineup_presentation.append({
+            "index": i + 1,
+            "position": player['position'],
+            "is_revealed": is_revealed,
+            # If revealed, show the name, ID, and image. If not, mask the name length.
+            "revealed_name": player['name'] if is_revealed else None,
+            "player_img_url": player['img_url'] if is_revealed else None,
+            "name_length": len(player['name']), # Used for the Wordle-style display (boxes)
+            "team_id": game_data['target_team_id'],
+            "player_id": player['id'] if is_revealed else None
+        })
+    
+    state = {
+        "is_finished": is_finished,
+        "match_id": game_data['match_id'],
+        "competition": game_data['competition'],
+        "match_date": game_data['match_date'],
+        "target_team_name": game_data['target_team_name'],
+        "lineup": lineup_presentation,
+        "message": message or ("Game over!" if is_finished else "Ready to guess.")
     }
-
-def get_game_state():
-    """
-    Get the current game state for the logged-in user.
-    """
-    riddle = load_daily_riddle()
-    if "error" in riddle:
-        return riddle
-
-    exposed_key = _session_key("exposed")
-    exposed = session.get(exposed_key, [""] * len(riddle["answers"]))
-    images = [riddle["images"].get(i+1) for i in range(len(riddle["answers"]))]
-    return {
-        "riddle_date": riddle["riddle_date"],
-        "category": riddle["category"],
-        "exposed": exposed,
-        "images": images
-    }
+    
+    return state
