@@ -1,386 +1,311 @@
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Guess the Starting XI</title>
-    <!-- Load Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <title>נחש את ההרכב</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;700&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --bg-color: #f0f2f5; --text-color: #333; --primary-color: #3F51B5;
+            --modal-bg: rgba(0, 0, 0, 0.7); --modal-content-bg: #fefefe; --key-bg: #e0e0e0;
+            --feedback-correct: #28a745; --feedback-present: #ffc107; --feedback-absent: #6c757d;
+        }
         body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f7fafc;
+            font-family: 'Heebo', sans-serif; background-color: var(--bg-color); color: var(--text-color);
+            margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center;
         }
-        .pitch {
-            background-color: #4CAF50; /* Green field */
-            background-image: linear-gradient(to bottom, #4CAF50, #388E3C);
-            border: 5px solid #E0E0E0;
-            position: relative;
-            aspect-ratio: 16 / 9; /* Maintain a standard football pitch ratio */
+        header { width: 100%; max-width: 600px; margin-bottom: 20px; text-align: center; }
+        h1 { font-size: 2.5rem; color: #1a237e; }
+        #game-info { font-size: 1.1rem; color: #555; }
+        #team-text b { color: #333; }
+        #player-list { width: 100%; max-width: 500px; display: flex; flex-direction: column; gap: 10px; }
+        .player-row {
+            display: flex; align-items: center; background-color: #fff; border-radius: 8px;
+            padding: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); transition: background-color 0.2s;
         }
-        .player-slot {
-            position: absolute;
-            width: 50px;
-            height: 50px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.2rem;
-            font-weight: 700;
-            color: white;
-            cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
-            z-index: 10;
+        .player-row.unrevealed:hover { background-color: #e8eaf6; cursor: pointer; }
+        .unrevealed-info { display: flex; align-items: center; gap: 15px; font-size: 1.2rem; width: 100%; }
+        .player-number { font-weight: bold; color: var(--primary-color); min-width: 25px; text-align: center; }
+        .revealed-info { display: flex; align-items: center; gap: 15px; }
+        .revealed-info img { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; }
+        .revealed-info .details { text-align: right; }
+        .revealed-info .name { font-size: 1.2rem; font-weight: bold; }
+        #guess-modal {
+            display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%;
+            background-color: var(--modal-bg); align-items: center; justify-content: center;
         }
-        .player-slot:hover {
-            transform: scale(1.1);
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+        #modal-content {
+            background-color: var(--modal-content-bg); padding: 20px; border-radius: 10px;
+            width: 90%; max-width: 500px; box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+            animation: modalOpen 0.3s; text-align: center;
         }
-        .player-shirt {
-            background-color: #1a73e8; /* Default team color (Blue) */
-            border: 2px solid white;
-        }
-        .player-revealed {
-            background-color: transparent; /* No background color when image is present */
-            border: none;
-            overflow: hidden;
-        }
-        .player-revealed img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            border-radius: 50%;
-            border: 2px solid #FFC107; /* Gold border for revealed player */
-        }
-        .feedback-box {
-            width: 30px;
-            height: 30px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1rem;
-            font-weight: 600;
-            color: white;
-            border-radius: 4px;
-            margin: 2px;
-            text-transform: uppercase;
-        }
-        .feedback-gray { background-color: #6C757D; }
-        .feedback-yellow { background-color: #FFC107; }
-        .feedback-green { background-color: #4CAF50; }
+        @keyframes modalOpen { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+        #modal-close { float: left; font-size: 28px; font-weight: bold; cursor: pointer; line-height: 1; }
+        
+        /* New styles for the 5-row grid */
+        #wordle-grid { display: flex; flex-direction: column; gap: 5px; margin: 20px 0; }
+        .wordle-row { display: flex; flex-direction: row-reverse; justify-content: center; gap: 4px; }
 
-        /* Modal specific styling */
-        .modal-overlay {
-            z-index: 50;
+        .letter-box {
+            width: 30px; height: 30px; border: 2px solid #ccc; display: flex; align-items: center;
+            justify-content: center; font-size: 1.3rem; font-weight: bold; border-radius: 5px;
         }
-        .modal-content {
-            max-width: 90%;
-            width: 500px;
-            z-index: 60;
-        }
+        .letter-box.space { border: none; background-color: transparent; }
+        .letter-box.correct { background-color: var(--feedback-correct); color: white; border-color: var(--feedback-correct); }
+        .letter-box.present { background-color: var(--feedback-present); color: white; border-color: var(--feedback-present); }
+        .letter-box.absent  { background-color: var(--feedback-absent); color: white; border-color: var(--feedback-absent); }
+
+        #keyboard { display: grid; grid-template-columns: repeat(10, 1fr); gap: 5px; margin-top: 20px; }
+        .key { padding: 10px 5px; font-size: 1.2rem; background-color: var(--key-bg); border: 1px solid #ccc; border-radius: 5px; cursor: pointer; }
+        #key-submit { grid-column: span 3; background-color: #28a745; color: white; }
+        #key-backspace { grid-column: span 2; background-color: #dc3545; color: white; }
     </style>
 </head>
-<body class="p-4 md:p-8">
-    <div id="app" class="max-w-4xl mx-auto">
-        
-        <!-- Header & Game Info -->
-        <header class="text-center mb-6">
-            <h1 class="text-3xl md:text-4xl font-bold text-gray-800">Guess the Starting XI</h1>
-            <p id="game-message" class="text-lg text-red-600 font-semibold mt-2">Start a new game!</p>
-            <div id="game-info" class="mt-4 text-gray-600">
-                <p>Team: <span id="target-team-name" class="font-semibold text-gray-900">N/A</span></p>
-                <p>Match: <span id="competition" class="font-medium">N/A</span> on <span id="match-date">N/A</span></p>
-                <button onclick="startGame()" class="mt-3 px-6 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition duration-150">Start New Game</button>
-            </div>
-        </header>
-
-        <!-- Main Game Area: Pitch -->
-        <div id="pitch-container" class="pitch mx-auto rounded-xl shadow-2xl relative overflow-hidden">
-            <!-- Center Circle -->
-            <div class="absolute inset-0 flex items-center justify-center">
-                <div class="w-1/3 h-1/3 border-4 border-white rounded-full"></div>
-                <div class="absolute w-2 h-2 bg-white rounded-full"></div>
-            </div>
-            <!-- Penalty Areas (simplified) -->
-            <div class="absolute top-1/4 left-0 w-1/12 h-1/2 border-4 border-white border-l-0"></div>
-            <div class="absolute top-1/4 right-0 w-1/12 h-1/2 border-4 border-white border-r-0"></div>
-            
-            <!-- Player Slots will be injected here -->
-            <div id="lineup-slots" class="absolute inset-0"></div>
+<body>
+    <header>
+        <h1>נחש את ההרכב</h1>
+        <div id="game-info">
+            <p id="competition-text">טוען משחק...</p>
+            <p id="team-text"></p>
         </div>
-        
-        <!-- Statistics/Progress -->
-        <div class="mt-6 p-4 bg-white rounded-lg shadow-lg flex justify-between items-center">
-            <p class="text-lg font-semibold">Players Found: <span id="players-found">0</span> / 11</p>
-            <p id="formation-display" class="text-lg font-semibold text-gray-700">Formation: N/A</p>
-        </div>
-
-        <!-- Guessing Modal (Hidden by default) -->
-        <div id="guess-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden modal-overlay flex items-center justify-center">
-            <div class="bg-white p-6 rounded-xl shadow-2xl modal-content transform transition duration-300">
-                <h2 class="text-2xl font-bold mb-4">Guess Player <span id="modal-slot-index"></span></h2>
-                
-                <!-- Current Feedback Display -->
-                <div id="feedback-display" class="flex justify-center mb-4 min-h-[40px]">
-                    <!-- Wordle boxes go here -->
-                </div>
-
-                <!-- Guess Input -->
-                <input type="text" id="player-guess-input" class="w-full p-3 mb-4 border-2 border-gray-300 rounded-lg text-center text-lg focus:border-blue-500 focus:ring focus:ring-blue-200" placeholder="Enter full player name" maxlength="20">
-                
-                <!-- On-Screen Keyboard Placeholder (Optional: for mobile Hebrew input) -->
-                <!-- <div id="hebrew-keyboard" class="text-center">...</div> -->
-
-                <!-- Buttons -->
-                <div class="flex justify-between space-x-4">
-                    <button onclick="submitGuess()" class="flex-1 py-3 bg-green-600 text-white font-bold rounded-lg shadow-md hover:bg-green-700 transition duration-150">Submit Guess</button>
-                    <button onclick="closeModal()" class="flex-1 py-3 bg-red-500 text-white font-bold rounded-lg shadow-md hover:bg-red-600 transition duration-150">Cancel</button>
-                </div>
-            </div>
+    </header>
+    <main id="player-list"></main>
+    <div id="guess-modal">
+        <div id="modal-content">
+            <span id="modal-close">&times;</span>
+            <h3 id="modal-title">נחש את השחקן</h3>
+            <div id="wordle-grid"></div>
+            <div id="keyboard"></div>
         </div>
     </div>
 
-    <!-- JavaScript Logic -->
     <script>
-        const GAME_URL = '/state';
-        const START_URL = '/start_game';
-        const GUESS_URL = '/guess';
+        document.addEventListener('DOMContentLoaded', () => {
+            const playerList = document.getElementById('player-list');
+            const competitionText = document.getElementById('competition-text');
+            const teamText = document.getElementById('team-text');
+            const modal = document.getElementById('guess-modal');
+            const modalClose = document.getElementById('modal-close');
+            const modalTitle = document.getElementById('modal-title');
+            const wordleGrid = document.getElementById('wordle-grid');
+            const keyboardContainer = document.getElementById('keyboard');
 
-        let activeSlotIndex = null;
-        let gameState = null;
+            let gameState = null;
+            let activeSlotIndex = null;
+            let currentGuess = "";
+            const hebrewKeys = ['ק','ר','א','ט','ו','ן','ם','פ','ש','ד','ג','כ','ע','י','ח','ל','ך','ף','ז','ס','ב','ה','נ','מ','צ','ת','ץ'];
 
-        // --- Formation and Position Mapping ---
-        // Converts Position (from DB) and Formation (e.g., '4-3-3') into CSS position (top/left %)
+            // === NEW: State management for guesses ===
+            let guessHistory = {}; // Stores guess history for each player
+            let currentAttempt = 0; // Tracks the current guess row (0-4)
+            const MAX_ATTEMPTS = 5;
+
+            async function startGame() {
+                try {
+                    const response = await fetch('/start_game');
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    gameState = await response.json();
+                    renderGame();
+                } catch (error) {
+                    competitionText.textContent = "שגיאה בטעינת המשחק. נסה לרענן.";
+                    console.error("Error starting game:", error);
+                }
+            }
+
+            function renderGame() {
+                if (!gameState || !Array.isArray(gameState.lineup)) return;
+                playerList.innerHTML = '';
+                competitionText.textContent = gameState.competition;
+                teamText.innerHTML = `<b>קבוצה לניחוש:</b> ${gameState.target_team_name}`;
+                gameState.lineup.forEach(player => {
+                    const playerRow = document.createElement('div');
+                    playerRow.className = 'player-row';
+                    if (player.is_revealed) {
+                        playerRow.innerHTML = `<div class="revealed-info"><img src="${player.player_img_url || 'https://via.placeholder.com/60'}" alt="${player.revealed_name}"><div class="details"><div class="name">${player.revealed_name}</div></div></div>`;
+                    } else {
+                        playerRow.classList.add('unrevealed');
+                        playerRow.dataset.index = player.index;
+                        playerRow.innerHTML = `<div class="unrevealed-info"><div class="player-number">${player.jersey_number || player.index}</div><div class="player-position">${player.position}</div></div>`;
+                    }
+                    playerList.appendChild(playerRow);
+                });
+            }
+
+            function openGuessModal(slotIndex) {
+                activeSlotIndex = slotIndex;
+                const player = gameState.lineup.find(p => p.index === slotIndex);
+                if (!player || typeof player.name !== 'string') return;
+                
+                const playerName = player.name;
+                modalTitle.textContent = `נחש את השחקן (עמדה: ${player.position})`;
+                wordleGrid.innerHTML = ''; // Clear previous grid
+                currentGuess = "";
+                const words = playerName.split(' ');
+                const reversedWords = words.reverse();
+
+                // Create the 5-row grid structure
+                for (let i = 0; i < MAX_ATTEMPTS; i++) {
+                    const row = document.createElement('div');
+                    row.className = 'wordle-row';
+                    reversedWords.forEach((word, wordIndex) => {
+                    // Create the boxes for the current word ("אלברמן" first)
+                    for (let i = 0; i < word.length; i++) {
+                        const box = document.createElement('div');
+                        box.className = 'letter-box';
+                        row.appendChild(box);
+                    }
+                    if (wordIndex < reversedWords.length - 1) {
+                        const space = document.createElement('div');
+                        space.className = 'letter-box space';
+                        row.appendChild(space);
+                    }
+                    wordleGrid.appendChild(row);
+                })
+            }
         
-        // Simplified mapping for a 4-3-3 structure based on position
-        const POSITION_MAP = {
-            'GK': { left: 5, top: 50 },
-            'CB': { left: 20, top: [35, 65] }, 
-            'RB': { left: 20, top: 85 },
-            'LB': { left: 20, top: 15 },
-            'CM': { left: 40, top: [30, 50, 70] },
-            'RM': { left: 40, top: 85 },
-            'LM': { left: 40, top: 15 },
-            'AM': { left: 60, top: [35, 65] },
-            'RW': { left: 75, top: 20 },
-            'LW': { left: 75, top: 80 },
-            'ST': { left: 85, top: 50 },
-            'CF': { left: 85, top: 50 }
-        };
 
-        const takenPositions = {}; // Tracks how many players have taken a specific position type
-
-        function getPositionCoordinates(player) {
-            const posKey = player.position;
-            const posConfig = POSITION_MAP[posKey];
-
-            if (!posConfig) {
-                console.warn(`No position map for: ${posKey}. Using default center.`);
-                return { top: 50, left: 50 };
-            }
-
-            if (Array.isArray(posConfig.top)) {
-                // Handle multiple slots for the same position (e.g., CM, CB)
-                if (!takenPositions[posKey]) {
-                    takenPositions[posKey] = 0;
-                }
-                const index = takenPositions[posKey] % posConfig.top.length;
-                takenPositions[posKey]++;
-                return { top: posConfig.top[index], left: posConfig.left };
-            }
-
-            // Handle single slot positions (e.g., GK, ST)
-            return { top: posConfig.top, left: posConfig.left };
-        }
-
-        // --- API Helpers ---
-
-        async function apiFetch(url, method = 'GET', data = null) {
-            const options = {
-                method: method,
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-            };
-            if (data) {
-                options.body = JSON.stringify(data);
-            }
-
-            const response = await fetch(url, options);
-            const result = await response.json();
-            
-            if (!response.ok) {
-                console.error("API Error:", result.error);
-                document.getElementById('game-message').textContent = `Error: ${result.error || 'Request failed.'}`;
-                return null;
-            }
-            return result;
-        }
-
-        // --- Game Flow Functions ---
-
-        async function startGame() {
-            document.getElementById('game-message').textContent = "Starting new game...";
-            // Clear the pitch of previous players
-            document.getElementById('lineup-slots').innerHTML = '';
-            // Reset position tracking
-            Object.keys(takenPositions).forEach(key => delete takenPositions[key]);
-
-            const newState = await apiFetch(START_URL);
-            if (newState) {
-                gameState = newState;
-                updateGameUI(newState);
-            }
-        }
-
-        async function loadGameState() {
-            const newState = await apiFetch(GAME_URL);
-            if (newState && !newState.error) {
-                gameState = newState;
-                updateGameUI(newState);
-            } else if (newState && newState.error.includes("No active game")) {
-                document.getElementById('game-message').textContent = "Welcome! Press Start New Game.";
-            }
-        }
-
-        function updateGameUI(state) {
-            document.getElementById('game-message').textContent = state.message;
-            document.getElementById('target-team-name').textContent = state.target_team_name || 'N/A';
-            document.getElementById('competition').textContent = state.competition || 'N/A';
-            document.getElementById('match-date').textContent = new Date(state.match_date).toLocaleDateString() || 'N/A';
-            
-            // Update Formation
-            // The formation string should be provided by the backend, but we'll use a placeholder for now
-            const formationString = state.team_formation || '4-4-2 (Default)'; 
-            document.getElementById('formation-display').textContent = `Formation: ${formationString}`;
-
-            // Draw players on the pitch
-            drawLineup(state.lineup);
-
-            // Update progress
-            const revealedCount = state.lineup.filter(p => p.is_revealed).length;
-            document.getElementById('players-found').textContent = revealedCount;
-
-            // Handle post-guess feedback (if present)
-            if (state.feedback) {
-                displayFeedback(state.feedback.guess, state.feedback.feedback);
-            } else {
-                displayFeedback('', []); // Clear previous feedback
-            }
-            
-            // Close modal if the last guess was correct and not final
-            if (!state.is_finished && state.feedback && state.feedback.feedback.every(f => f === 2)) {
-                setTimeout(closeModal, 1500); // Close after 1.5s reveal effect
-            } else if (state.is_finished) {
-                closeModal();
-            }
-        }
-
-        function drawLineup(lineup) {
-            const pitch = document.getElementById('lineup-slots');
-            pitch.innerHTML = ''; // Clear existing slots
-
-            lineup.forEach((player, index) => {
-                const pos = getPositionCoordinates(player);
-                const slot = document.createElement('div');
-                
-                slot.className = `player-slot transition-all duration-300 transform -translate-x-1/2 -translate-y-1/2 ${player.is_revealed ? 'player-revealed' : 'player-shirt'}`;
-                
-                slot.style.top = `${pos.top}%`;
-                slot.style.left = `${pos.left}%`;
-                
-                // Add player number (using index + 1 as placeholder for now)
-                if (player.is_revealed) {
-                    slot.innerHTML = `<img src="${player.player_img_url}" alt="${player.revealed_name}">`;
+                // Restore previous guesses if they exist
+                if (guessHistory[slotIndex]) {
+                    currentAttempt = guessHistory[slotIndex].length;
+                    guessHistory[slotIndex].forEach((attempt, index) => {
+                        displayFeedback(attempt.feedback, index, attempt.guess);
+                    });
                 } else {
-                    slot.textContent = player.index; // Display shirt number/index
-                    slot.onclick = () => openGuessModal(player.index);
+                    currentAttempt = 0;
+                    guessHistory[slotIndex] = [];
                 }
-
-                pitch.appendChild(slot);
-            });
-        }
-
-        // --- Modal & Guessing Logic ---
-
-        function openGuessModal(index) {
-            activeSlotIndex = index;
-            document.getElementById('modal-slot-index').textContent = index;
-            document.getElementById('player-guess-input').value = '';
-            displayFeedback('', []); // Clear any old feedback
-            document.getElementById('guess-modal').classList.remove('hidden');
-            document.getElementById('player-guess-input').focus();
-        }
-
-        function closeModal() {
-            document.getElementById('guess-modal').classList.add('hidden');
-            activeSlotIndex = null;
-        }
-
-        async function submitGuess() {
-            const guessInput = document.getElementById('player-guess-input');
-            const playerGuess = guessInput.value.trim();
-
-            if (!playerGuess) {
-                document.getElementById('game-message').textContent = "Please enter a name.";
-                return;
+                
+                modal.style.display = 'flex';
             }
-
-            // API Call: Pass the active slot index and the guess
-            const data = {
-                player: playerGuess,
-                slot_index: activeSlotIndex
-            };
-
-            const newState = await apiFetch(GUESS_URL, 'POST', data);
-            if (newState) {
-                gameState = newState;
-                updateGameUI(newState);
-
-                // If the guess was a perfect match, keep the modal open briefly for the animation
-                // Then close it via the updateGameUI logic
-            }
-        }
-        
-        function displayFeedback(guess, feedback) {
-            const display = document.getElementById('feedback-display');
-            display.innerHTML = '';
             
-            const guessLetters = Array.from(guess.toUpperCase());
+            async function submitGuess() {
+                const player = gameState.lineup.find(p => p.index === activeSlotIndex);
+                if (!player || currentAttempt >= MAX_ATTEMPTS || currentGuess.length !== player.name.replace(/ /g, '').length) return;
 
-            // Ensure feedback list has the same length as the guess letters
-            const effectiveFeedback = feedback.slice(0, guessLetters.length); 
+                try {
+                    const response = await fetch('/guess', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ slot_index: activeSlotIndex, player: currentGuess })
+                    });
+                    if (!response.ok) throw new Error(`Guess submission failed`);
+                    const result = await response.json();
 
-            guessLetters.forEach((letter, index) => {
-                const box = document.createElement('div');
-                let className = 'feedback-box ';
-                
-                // Map the integer feedback (2, 1, 0) to CSS classes
-                const fb = effectiveFeedback[index];
-                if (fb === 2) {
-                    className += 'feedback-green';
-                } else if (fb === 1) {
-                    className += 'feedback-yellow';
-                } else {
-                    className += 'feedback-gray';
+                    if (result.feedback) {
+                        // Store guess in history
+                        guessHistory[activeSlotIndex].push({ guess: currentGuess, feedback: result.feedback.feedback });
+                        // Display feedback on the current row
+                        displayFeedback(result.feedback.feedback, currentAttempt, currentGuess);
+                        // Move to the next attempt
+                        currentAttempt++;
+                        currentGuess = "";
+                        if (currentAttempt >= MAX_ATTEMPTS) {
+                            alert('אין לך ניחושים נוספים!');
+                        }
+                    } else {
+                        // Correct guess
+                        gameState = result;
+                        renderGame();
+                        closeModal();
+                        if (result.is_finished) setTimeout(() => alert(result.message), 300);
+                    }
+                } catch (error) {
+                    console.error("Error submitting guess:", error);
+                    alert("שגיאה בשליחת הניחוש. נסה שוב.");
                 }
-                
-                box.className = className;
-                box.textContent = letter;
-                display.appendChild(box);
-            });
-        }
-
-        // Initialize game state on load
-        window.onload = loadGameState;
-
-        // Allow pressing Enter to submit guess in the modal
-        document.getElementById('player-guess-input').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                submitGuess();
             }
+
+            function displayFeedback(feedbackArray, attemptIndex, guess) {
+                const row = wordleGrid.children[attemptIndex];
+                if (!row) return;
+
+                const boxes = Array.from(row.querySelectorAll('.letter-box:not(.space)'));
+                const guessChars = guess.split(''); // The characters in their natural order
+
+                // FIX: Apply feedback from right-to-left by reversing the box array.
+                boxes.reverse().forEach((box, i) => {
+                    if (i < guessChars.length) {
+                        const feedback = feedbackArray[i];
+                        box.textContent = guessChars[i];
+                        
+                        box.classList.remove('correct', 'present', 'absent');
+                        if (feedback === 2) box.classList.add('correct');
+                        else if (feedback === 1) box.classList.add('present');
+                        else box.classList.add('absent');
+                    }
+                });
+            }
+            
+            function updateWordleGrid() {
+                if (currentAttempt >= MAX_ATTEMPTS) return;
+                const row = wordleGrid.children[currentAttempt];
+                const boxes = Array.from(row.querySelectorAll('.letter-box:not(.space)'));
+                const guessChars = currentGuess.split(''); // The characters in their natural order
+
+                // Clear all boxes first
+                boxes.forEach(box => box.textContent = '');
+
+                // FIX: Fill the boxes from right-to-left.
+                // We reverse the array of HTML boxes, not the text itself.
+                boxes.reverse().forEach((box, i) => {
+                    if (i < guessChars.length) {
+                        box.textContent = guessChars[i];
+                    }
+                });
+            }
+
+            function closeModal() {
+                modal.style.display = 'none'; activeSlotIndex = null; currentGuess = "";
+            }
+
+            function createKeyboard() {
+                keyboardContainer.innerHTML = '';
+                hebrewKeys.forEach(key => {
+                    const keyEl = document.createElement('button');
+                    keyEl.className = 'key';
+                    keyEl.textContent = key;
+                    keyEl.addEventListener('click', () => {
+                        const player = gameState.lineup.find(p => p.index === activeSlotIndex);
+                        if (!player) return;
+                        const maxLen = player.name.replace(/ /g, '').length;
+                        if (currentGuess.length < maxLen) {
+                            currentGuess += key;
+                            updateWordleGrid();
+                        }
+                    });
+                    keyboardContainer.appendChild(keyEl);
+                });
+                const backspaceKey = document.createElement('button');
+                backspaceKey.id = 'key-backspace'; backspaceKey.className = 'key';
+                backspaceKey.textContent = 'מחק';
+                backspaceKey.addEventListener('click', () => {
+                    currentGuess = currentGuess.slice(0, -1);
+                    updateWordleGrid();
+                });
+                const submitKey = document.createElement('button');
+                submitKey.id = 'key-submit'; submitKey.className = 'key';
+                submitKey.textContent = 'נחש';
+                submitKey.addEventListener('click', submitGuess);
+                keyboardContainer.appendChild(backspaceKey);
+                keyboardContainer.appendChild(submitKey);
+            }
+            
+            playerList.addEventListener('click', (event) => {
+                const row = event.target.closest('.player-row.unrevealed');
+                if (row) {
+                    const playerIndex = parseInt(row.dataset.index, 10);
+                    if (playerIndex) openGuessModal(playerIndex);
+                }
+            });
+
+            modalClose.addEventListener('click', closeModal);
+            window.addEventListener('keydown', (e) => { if (e.key === "Escape") closeModal(); });
+
+            createKeyboard();
+            startGame();
         });
     </script>
 </body>

@@ -57,7 +57,8 @@ def _get_game_data():
                 "name": line.player.player_name,
                 "position": line.player.position,
                 "img_url": line.player.player_image_url,
-                "player_stats":[event.event_type for event in player_events]
+                "player_stats":[event.event_type for event in player_events],
+                "jersey_number":line.jersey_number
                 
             })
         
@@ -95,7 +96,7 @@ def start_new_game():
 def _normalize_name(name: str):
     """Normalizes names by converting to lowercase and stripping spaces."""
     # We remove spaces to simplify letter comparison for Wordle-style feedback
-    return name.strip().lower().replace(' ', '')
+    return name.strip().replace(' ', '')
 
 def _get_feedback(correct_name: str, guess: str):
     """
@@ -147,7 +148,6 @@ def check_guess(slot_index: int, player_guess: str):
     game_data = session.get(GAME_SESSION_KEY)
     exposed = session.get(EXPOSED_PLAYERS_KEY)
     
-    # Convert slot_index (1-based) to list index (0-based)
     lineup_index = slot_index - 1
     
     if not game_data or not exposed:
@@ -161,45 +161,42 @@ def check_guess(slot_index: int, player_guess: str):
 
     target_player = game_data['lineup'][lineup_index]
     
-    # Check if the guess matches the name exactly (either Hebrew or English)
-    normalized_guess = player_guess.strip().lower()
-    
-    # Check for perfect match first
-    perfect_match = (
-        normalized_guess == target_player['name'].lower().strip() or 
-        (target_player['eng_name'] and normalized_guess == target_player['eng_name'].lower().strip())
-    )
+    # === THE FIX: Compare the NORMALIZED names for a perfect match ===
+    # This correctly compares "קאלהדרשלר" to "קאלהדרשלר"
+    perfect_match = (_normalize_name(player_guess) == _normalize_name(target_player['name']))
 
     if perfect_match:
-        # Player found and is correct for this slot - REVEAL
-        exposed[lineup_index] = target_player['name'] # Mark as revealed with the name
+        # Player found and is correct - REVEAL
+        exposed[lineup_index] = target_player['name']
         session[EXPOSED_PLAYERS_KEY] = exposed
         
         message = f"Correct! {target_player['name']} revealed."
         
-        # Check for win condition
         if all(exposed):
             message = "Congratulations! Lineup complete! 🎉"
         
-        # Return the full state to update the entire game board
         return get_game_state(message=message)
         
     else:
         # Not a perfect match: Return Wordle-style feedback
         feedback = _get_feedback(target_player['name'], player_guess)
         
-        # Return the current state plus the specific feedback
         state = get_game_state(message="Incorrect name. See letter feedback.")
         state['feedback'] = {
             "slot_index": slot_index,
             "guess": player_guess,
-            "feedback": feedback # List of 2 (Green), 1 (Yellow), 0 (Gray)
+            "feedback": feedback
         }
         return state
-
+        
 def get_game_state(message: str = None):
     """Returns the current game state and lineup presentation data."""
     game_data = session.get(GAME_SESSION_KEY)
+    """
+    print("---------debug info here----------")
+    for key,value in game_data.items():
+        print(key, " : ",value)
+    """
     exposed = session.get(EXPOSED_PLAYERS_KEY)
     
     if not game_data or not exposed:
@@ -217,11 +214,12 @@ def get_game_state(message: str = None):
             "position": player['position'],
             "is_revealed": is_revealed,
             # If revealed, show the name, ID, and image. If not, mask the name length.
+            "name": player['name'],
             "revealed_name": player['name'] if is_revealed else None,
             "player_img_url": player['img_url'] if is_revealed else None,
             "name_length": len(player['name']), # Used for the Wordle-style display (boxes)
-            "team_id": game_data['target_team_id'],
-            "player_id": player['id'] if is_revealed else None
+            "player_id": player['id'] if is_revealed else None,
+            "jersey_number":player["jersey_number"]
         })
     
     state = {

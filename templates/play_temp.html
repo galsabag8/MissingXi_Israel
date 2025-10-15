@@ -1,302 +1,288 @@
 <!doctype html>
 <html lang="he" dir="rtl">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>חידת הטופ 10 היומית</title>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>נחש ה-11 הפותחים - רשימה</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;700&display=swap" rel="stylesheet">
     <style>
-      body {
-        margin: 0;
-        background: #f3f4f7;
-        font-family: "Heebo", Arial, sans-serif;
-        color: #222;
-      }
-      header {
-        background: linear-gradient(135deg, #0057b8, #0099ff);
-        color: #fff;
-        padding: 20px 24px;
-        text-align: center;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.15);
-      }
-      header h1 {
-        margin: 0;
-        font-size: 2rem;
-        font-weight: 700;
-      }
-      #meta {
-        margin-top: 8px;
-        font-size: 1.2rem;
-        opacity: 0.9;
-      }
-
-      .controls {
-        margin: 24px auto;
-        display: flex;
-        gap: 10px;
-        justify-content: center;
-        align-items: center;
-        flex-wrap: wrap;
-      }
-      input[type="text"] {
-        padding: 12px 16px;
-        border-radius: 30px;
-        border: 1px solid #ccc;
-        width: 300px;
-        direction: rtl;
-        font-size: 1rem;
-        outline: none;
-        box-shadow: 0 3px 6px rgba(0,0,0,0.05);
-        transition: border 0.2s;
-      }
-      input[type="text"]:focus {
-        border-color: #007bff;
-      }
-      button {
-        padding: 12px 20px;
-        border-radius: 30px;
-        border: none;
-        font-size: 1rem;
-        font-weight: 600;
-        cursor: pointer;
-        transition: background 0.2s;
-      }
-      #guessBtn {
-        background: #28a745;
-        color: #fff;
-      }
-      #guessBtn:hover { background: #218838; }
-      .secondary {
-        background: #eee;
-        color: #333;
-      }
-      .secondary:hover { background: #ddd; }
-
-      .status {
-        margin-top: 10px;
-        text-align: center;
-        min-height: 24px;
-        font-size: 1.1rem;
-        font-weight: 500;
-      }
-
-      .row {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-        gap: 16px;
-        margin: 30px auto;
-        max-width: 1000px;
-        padding: 0 16px;
-      }
-      .slot {
-        background: #fff;
-        border-radius: 12px;
-        padding: 16px;
-        text-align: center;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-        transition: transform 0.25s ease, box-shadow 0.25s ease;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        min-height: 140px;
-        position: relative;
-      }
-      .slot:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-      }
-      .slot .rank {
-        position: absolute;
-        top: 10px;
-        right: 12px;
-        font-weight: 700;
-        color: #999;
-        font-size: 0.9rem;
-      }
-      .slot img {
-        width: 70px;
-        height: 70px;
-        object-fit: cover;
-        border-radius: 50%;
-        border: 2px solid #eee;
-        margin-bottom: 8px;
-        display: none;
-      }
-      .slot.revealed img { display: block; }
-      .slot.revealed {
-        background: linear-gradient(135deg, #eaffea, #ffffff);
-        border: 1px solid #9cd39c;
-      }
-      .slot .name {
-        font-size: 1rem;
-        font-weight: 600;
-        margin-top: 4px;
-      }
-
-      /* Suggestions dropdown */
-      #suggestions {
-        position: absolute;
-        right: 0; left: 0;
-        background: #fff;
-        border: 1px solid #ccc;
-        border-radius: 12px;
-        margin-top: 4px;
-        display: none;
-        max-height: 220px;
-        overflow: auto;
-        z-index: 10;
-        box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-      }
-      #suggestions div {
-        padding: 10px 12px;
-        cursor: pointer;
-        transition: background 0.2s;
-      }
-      #suggestions div:hover { background: #f5f5f5; }
+        body {
+            font-family: 'Heebo', sans-serif;
+            background-color: #f0f4f8;
+        }
+        .feedback-box {
+            width: 25px;
+            height: 25px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: white;
+            border-radius: 4px;
+            margin: 1px;
+        }
+        .feedback-gray { background-color: #6C757D; }
+        .feedback-yellow { background-color: #FFC107; }
+        .feedback-green { background-color: #4CAF50; }
+        /* Ensuring RTL for elements like names and boxes */
+        .guess-row { direction: rtl; } 
+        .player-info { width: 30%; }
+        .guess-area { width: 70%; }
     </style>
-  </head>
-  <body>
-    <header>
-      <h1>חידת הטופ 10 היומית</h1>
-      <div id="meta"></div>
-    </header>
+</head>
+<body class="p-4 md:p-8">
+    <div id="app" class="max-w-xl mx-auto" dir="rtl">
+        
+        <!-- Game Header -->
+        <header class="text-center mb-6">
+            <h1 class="text-3xl font-bold text-gray-800" id="game-title">נחש את ה-11 הפותחים</h1>
+            <p id="game-message" class="text-lg text-red-600 font-semibold mt-2">התחל משחק!</p>
+            <div id="game-info" class="mt-4 text-gray-600">
+                <p>משחק: <span id="competition" class="font-medium">N/A</span> (<span id="match-date">N/A</span>)</p>
+                <button onclick="startGame()" class="mt-3 px-6 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition duration-150">התחל משחק חדש</button>
+            </div>
+        </header>
 
-    <div class="controls">
-      <div style="position: relative;">
-        <input id="guess" type="text" placeholder="הקלידו שם ולחצו ניחוש" autocomplete="off" />
-        <div id="suggestions"></div>
-      </div>
-      <button id="guessBtn">ניחוש</button>
-      <button id="startBtn" class="secondary">התחילו / אפסו להיום</button>
+        <!-- Player List -->
+        <div id="player-list" class="mt-8 space-y-4">
+            <!-- Player guess cards will be injected here -->
+        </div>
     </div>
 
-    <div class="status" id="status"></div>
-    <div class="row" id="board"></div>
-
+    <!-- JavaScript Logic -->
     <script>
-      const board = document.getElementById('board');
-      const meta = document.getElementById('meta');
-      const statusEl = document.getElementById('status');
-      const guessInput = document.getElementById('guess');
-      const guessBtn = document.getElementById('guessBtn');
-      const startBtn = document.getElementById('startBtn');
-      const suggestions = document.getElementById('suggestions');
+        // --- CRITICAL FIX: Set base URL for API calls ---
+        const API_BASE_URL = 'http://127.0.0.1:5000'; // Flask server location
 
-      function renderState(state) {
-        if (!state || state.error) {
-          meta.textContent = state?.error || 'אין מצב נוכחי';
-          board.innerHTML = '';
-          return;
+        const GAME_URL = '/state';
+        const START_URL = '/start_game';
+        const GUESS_URL = '/guess';
+
+        let gameState = null;
+
+        // --- API Helpers ---
+
+        async function apiFetch(url, method = 'GET', data = null) {
+            const fullUrl = API_BASE_URL + url; 
+            const options = {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+            };
+            if (data) { options.body = JSON.stringify(data); }
+
+            const response = await fetch(fullUrl, options);
+            const result = await response.json();
+            
+            if (!response.ok) {
+                console.error("API Error:", result.error);
+                document.getElementById('game-message').textContent = `שגיאה: ${result.error || 'הבקשה נכשלה.'}`;
+                return null;
+            }
+            return result;
         }
-        meta.textContent = `${state.category} — ${state.riddle_date}`;
-        board.innerHTML = '';
-        const exposed = state.exposed || [];
-        const images = state.images || [];
-        for (let i = 0; i < 10; i++) {
-          const slot = document.createElement('div');
-          slot.className = 'slot' + (exposed[i] ? ' revealed' : '');
-          const rank = document.createElement('div');
-          rank.className = 'rank';
-          rank.textContent = `#${i+1}`;
-          slot.appendChild(rank);
-          const img = document.createElement('img');
-          if (images[i]) img.src = images[i];
-          slot.appendChild(img);
-          const name = document.createElement('div');
-          name.className = 'name';
-          name.textContent = exposed[i] ? exposed[i] : '???';
-          slot.appendChild(name);
-          board.appendChild(slot);
-        }
-      }
 
-      async function startGame() {
-        statusEl.textContent = 'מתחילים…';
-        const res = await fetch('/start_game');
-        const data = await res.json();
-        statusEl.textContent = 'המשחק התחיל!';
-        renderState(data);
-      }
+        // --- Feedback Renderer (RTL Wordle Logic) ---
 
-      async function getState() {
-        const res = await fetch('/state');
-        const data = await res.json();
-        renderState(data);
-      }
+        function renderFeedback(guess, feedback, targetLength) {
+            const displayDiv = document.createElement('div');
+            // CRITICAL RTL: Use flex-row-reverse for boxes, and justify-end for alignment
+            displayDiv.className = 'flex flex-row-reverse space-x-1 space-x-reverse justify-end'; 
 
-      function translateMessage(data) {
-        if (data.finished && data.correct) return 'כל הכבוד! חשפתם את כל התשובות! 🎉';
-        if (data.correct) return 'נכון!';
-        if (data.rank && !data.correct) return 'התשובה כבר נחשפה.';
-        return 'לא נכון, נסו שוב!';
-      }
+            const actualName = " ".repeat(targetLength); // Used for calculating skeleton shape
+            let charIndex = 0;
+            
+            // Split the skeleton by spaces (assuming one space for separation)
+            // Note: This relies on player.name_length being accurate, including space count
+            const nameParts = actualName.split(' ');
 
-      async function guess() {
-        const player = guessInput.value.trim();
-        if (!player) return;
-        const res = await fetch('/guess', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ player })
-        });
-        const data = await res.json();
-        statusEl.textContent = translateMessage(data);
-        renderState(data);
-        if (data.finished) {
-          guessBtn.disabled = true;
-          guessInput.disabled = true;
-        }
-        guessInput.value = '';
-        guessInput.focus();
-      }
-
-      // suggestions
-      function hideSuggestions() { suggestions.style.display = 'none'; suggestions.innerHTML = ''; }
-      function showSuggestions(items) {
-        if (!items || (!items.players?.length && !items.teams?.length)) { hideSuggestions(); return; }
-        suggestions.innerHTML = '';
-        const makeGroup = (title, arr) => {
-          if (!arr?.length) return;
-          const header = document.createElement('div');
-          header.textContent = title;
-          header.style.cssText = 'padding:6px 10px; font-weight:600; background:#f6f6f6; border-bottom:1px solid #eee;';
-          suggestions.appendChild(header);
-          arr.forEach(it => {
-            const row = document.createElement('div');
-            row.textContent = it.name;
-            row.addEventListener('click', () => {
-              guessInput.value = it.name;
-              hideSuggestions();
-              guessInput.focus();
+            nameParts.forEach((part, partIndex) => {
+                if (partIndex > 0) {
+                    // Add a small space element between first and last name blocks
+                    const space = document.createElement('div');
+                    space.className = 'w-2 h-2';
+                    displayDiv.appendChild(space);
+                }
+                
+                for (let i = 0; i < part.length; i++) {
+                    const box = document.createElement('div');
+                    let className = 'feedback-box ';
+                    const char = (guess[charIndex] || '').toUpperCase();
+                    
+                    const fb = feedback[charIndex];
+                    
+                    if (charIndex < guess.length) {
+                        // If a letter was guessed, use the feedback color
+                        if (fb === 2) {
+                            className += 'feedback-green';
+                        } else if (fb === 1) {
+                            className += 'feedback-yellow';
+                        } else {
+                            className += 'feedback-gray';
+                        }
+                        box.textContent = char;
+                    } else {
+                        // Skeleton box (Empty gray box)
+                        className += 'feedback-gray';
+                        box.textContent = '';
+                    }
+                    
+                    box.className = className;
+                    displayDiv.appendChild(box);
+                    charIndex++;
+                }
             });
-            suggestions.appendChild(row);
-          });
-        };
-        makeGroup('שחקנים', items.players);
-        makeGroup('קבוצות', items.teams);
-        suggestions.style.display = 'block';
-      }
-      let searchTimer = null;
-      guessInput.addEventListener('input', () => {
-        const q = guessInput.value.trim();
-        if (q.length < 3) { hideSuggestions(); return; }
-        clearTimeout(searchTimer);
-        searchTimer = setTimeout(async () => {
-          try {
-            const res = await fetch('/search?q=' + encodeURIComponent(q));
-            const data = await res.json();
-            showSuggestions(data);
-          } catch { hideSuggestions(); }
-        }, 200);
-      });
-      document.addEventListener('click', (e) => {
-        if (!suggestions.contains(e.target) && e.target !== guessInput) hideSuggestions();
-      });
-      guessBtn.addEventListener('click', guess);
-      guessInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') guess(); });
-      startBtn.addEventListener('click', startGame);
+            return displayDiv;
+        }
 
-      // initial load
-      getState();
+        // --- Game Flow Functions ---
+
+        async function startGame() {
+            document.getElementById('game-message').textContent = "מפעיל משחק חדש...";
+            const newState = await apiFetch(START_URL);
+            if (newState) {
+                gameState = newState;
+                updateGameUI(newState);
+            }
+        }
+
+        async function loadGameState() {
+            const newState = await apiFetch(GAME_URL);
+            if (newState && !newState.error) {
+                gameState = newState;
+                updateGameUI(newState);
+            } else if (newState && newState.error && newState.error.includes("No active game")) {
+                document.getElementById('game-message').textContent = "ברוך הבא! לחץ התחל משחק חדש.";
+            }
+        }
+
+        function updateGameUI(state) {
+            gameState = state;
+            
+            document.getElementById('game-message').textContent = state.message;
+            
+            // 1. Update Title and Match Info (Using team name from state)
+            document.getElementById('game-title').textContent = `נחש את ה-11 הפותחים | ${state.target_team_name}`;
+            document.getElementById('competition').textContent = state.competition;
+            document.getElementById('match-date').textContent = new Date(state.match_date).toLocaleDateString('he-IL'); // Hebrew date format
+            
+            const listContainer = document.getElementById('player-list');
+            listContainer.innerHTML = ''; // Clear existing list
+
+            const activeFeedback = state.feedback || {};
+
+            state.lineup.forEach(player => {
+                const playerCard = document.createElement('div');
+                playerCard.className = 'flex items-center p-4 bg-white rounded-lg shadow-md guess-row';
+                
+                // --- Player Info (Number and Position) ---
+                const infoDiv = document.createElement('div');
+                infoDiv.className = 'player-info flex items-center space-x-4 space-x-reverse text-gray-700';
+                
+                // Check if player is revealed to show image instead of number
+                const playerDisplay = player.is_revealed 
+                    ? `<img src="${player.player_img_url}" alt="${player.revealed_name}" class="w-10 h-10 rounded-full border-2 border-green-500">`
+                    : `<div class="text-xl font-bold w-8 h-8 flex items-center justify-center rounded-full bg-blue-100 text-blue-800">${player.index}</div>`;
+
+                infoDiv.innerHTML = `
+                    ${playerDisplay}
+                    <div class="font-semibold">${player.position}</div>
+                `;
+                playerCard.appendChild(infoDiv);
+
+                // --- Guess Area (Input and Feedback) ---
+                const guessDiv = document.createElement('div');
+                guessDiv.className = 'guess-area flex flex-col items-end space-y-2';
+                
+                if (player.is_revealed) {
+                    // --- Revealed Player Name ---
+                    guessDiv.innerHTML = `<span class="text-xl font-bold text-gray-900">${player.revealed_name}</span>`;
+                } else {
+                    // --- Guess Input and Feedback ---
+                    
+                    const isTargetSlot = (activeFeedback.slot_index === player.index);
+                    const currentGuess = isTargetSlot ? activeFeedback.guess : '';
+                    const currentFeedback = isTargetSlot ? activeFeedback.feedback : [];
+
+                    // 1. Feedback/Skeleton Row (Always draw skeleton)
+                    const feedbackElement = renderFeedback(currentGuess, currentFeedback, player.name_length);
+                    guessDiv.appendChild(feedbackElement);
+
+                    // 2. Input Box and Button
+                    const inputContainer = document.createElement('div');
+                    inputContainer.className = 'flex w-full space-x-2 space-x-reverse';
+                    
+                    const inputField = document.createElement('input');
+                    inputField.type = 'text';
+                    inputField.id = `input-${player.index}`;
+                    inputField.placeholder = "נחש את השם";
+                    inputField.className = 'flex-1 p-2 border border-gray-300 rounded-lg text-right';
+                    
+                    const submitButton = document.createElement('button');
+                    submitButton.textContent = 'שלח';
+                    submitButton.className = 'px-3 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600';
+                    submitButton.onclick = () => submitGuess(player.index);
+                    
+                    // Event listener for Enter key
+                    inputField.addEventListener('keypress', (e) => {
+                        if (e.key === 'Enter') {
+                            submitGuess(player.index);
+                        }
+                    });
+
+                    inputContainer.appendChild(submitButton);
+                    inputContainer.appendChild(inputField); 
+                    
+                    guessDiv.appendChild(inputContainer);
+                }
+
+                playerCard.appendChild(guessDiv);
+                listContainer.appendChild(playerCard);
+                
+                // If revealed, and we have an image, update the info box to show the image
+                if (player.is_revealed) {
+                    infoDiv.innerHTML = `
+                        ${playerDisplay}
+                        <div class="font-semibold">${player.position}</div>
+                    `;
+                }
+            });
+            
+            // Focus on the first open input field after updating the UI
+            const firstInput = document.querySelector('#player-list input[type="text"]');
+            if(firstInput) firstInput.focus();
+        }
+
+        // --- Submit Guess Logic (Modified to accept index) ---
+
+        async function submitGuess(index) {
+            const guessInput = document.getElementById(`input-${index}`);
+            const playerGuess = guessInput.value.trim();
+
+            if (!playerGuess) {
+                document.getElementById('game-message').textContent = "נא להכניס שם.";
+                return;
+            }
+
+            const data = {
+                player: playerGuess,
+                slot_index: index 
+            };
+
+            const newState = await apiFetch(GUESS_URL, 'POST', data);
+            if (newState) {
+                updateGameUI(newState);
+                
+                // If incorrect, set the input value again for easy correction
+                if (newState.feedback && newState.feedback.slot_index === index) {
+                     document.getElementById(`input-${index}`).value = newState.feedback.guess;
+                }
+            }
+        }
+
+        // Initialize game state on load
+        window.onload = loadGameState;
     </script>
-  </body>
+</body>
 </html>

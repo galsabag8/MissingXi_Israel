@@ -58,7 +58,7 @@ def about():
 @app.route("/play")
 def play():
     # Renders the HTML file we created (play_temp.html)
-    return render_template("play_temp.html")
+    return render_template("play.html")
 
 # New Game Endpoints:
 
