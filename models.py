@@ -43,7 +43,7 @@ class Match(db.Model):
     date = db.Column(db.DateTime, nullable=False)
     home_team_id = db.Column(db.Integer, db.ForeignKey("teams.id"), nullable=False)
     away_team_id = db.Column(db.Integer, db.ForeignKey("teams.id"), nullable=False)
-    competition = db.Column(db.String(100), nullable=True)
+    competition = db.Column(db.String(255), nullable=True)
     score_home = db.Column(db.Integer, default=0)
     score_away = db.Column(db.Integer, default=0)
 

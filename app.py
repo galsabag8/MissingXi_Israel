@@ -2,6 +2,7 @@ from flask import Flask, jsonify, request, session, render_template
 import os
 from datetime import datetime, timezone
 from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
 from models import db, Player, Team
 # Import the new game logic functions (start_new_game, check_guess, get_game_state)
 from game_logic import start_new_game, check_guess, get_game_state 
@@ -36,6 +37,7 @@ app.config["SESSION_COOKIE_SECURE"] = (
 
 # Initialize SQLAlchemy
 db.init_app(app)
+migrate = Migrate(app, db)
 
 # -----------------------------
 # Routes
@@ -43,7 +45,7 @@ db.init_app(app)
 
 @app.route("/")
 def home():
-    return "Hello, this is my site!"
+    return render_template("play.html")
 
 
 @app.before_request
@@ -55,12 +57,7 @@ def about():
     # Updated text for the new game concept
     return "This is a prediction game based on Israeli soccer data and starting lineups."
 
-@app.route("/play")
-def play():
-    # Renders the HTML file we created (play_temp.html)
-    return render_template("play.html")
 
-# New Game Endpoints:
 
 @app.route("/start_game", methods=["GET"])
 def start_game():

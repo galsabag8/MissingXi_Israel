@@ -57,11 +57,34 @@
         .letter-box.correct { background-color: var(--feedback-correct); color: white; border-color: var(--feedback-correct); }
         .letter-box.present { background-color: var(--feedback-present); color: white; border-color: var(--feedback-present); }
         .letter-box.absent  { background-color: var(--feedback-absent); color: white; border-color: var(--feedback-absent); }
+        #keyboard-feedback {
+            color: #dc3545; /* Red color for the message */
+            font-weight: bold;
+            height: 20px; /* Reserve space to prevent layout shifting */
+            margin-top: 10px;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+        }
 
+        #keyboard-feedback.visible {
+            opacity: 1;
+        }
         #keyboard { display: grid; grid-template-columns: repeat(10, 1fr); gap: 5px; margin-top: 20px; }
         .key { padding: 10px 5px; font-size: 1.2rem; background-color: var(--key-bg); border: 1px solid #ccc; border-radius: 5px; cursor: pointer; }
         #key-submit { grid-column: span 3; background-color: #28a745; color: white; }
         #key-backspace { grid-column: span 2; background-color: #dc3545; color: white; }
+        .key.correct {
+            background-color: var(--feedback-correct);
+            color: white;
+        }
+        .key.present {
+            background-color: var(--feedback-present);
+            color: white;
+        }
+        .key.absent {
+            background-color: #a4a4a4; /* A darker gray to show it's used */
+            color: #fefefe;
+        }
     </style>
 </head>
 <body>
@@ -78,6 +101,7 @@
             <span id="modal-close">&times;</span>
             <h3 id="modal-title">נחש את השחקן</h3>
             <div id="wordle-grid"></div>
+            <div id="keyboard-feedback"></div>
             <div id="keyboard"></div>
         </div>
     </div>
@@ -92,10 +116,12 @@
             const modalTitle = document.getElementById('modal-title');
             const wordleGrid = document.getElementById('wordle-grid');
             const keyboardContainer = document.getElementById('keyboard');
-
+            const keyboardFeedback = document.getElementById('keyboard-feedback');
+            let feedbackTimeout; // To manage the timer for the feedback message
             let gameState = null;
             let activeSlotIndex = null;
             let currentGuess = "";
+            let keyboardLetterStatus = {}; // Stores the status of each key ('correct', 'present', 'absent')
             const hebrewKeys = ['ק','ר','א','ט','ו','ן','ם','פ','ש','ד','ג','כ','ע','י','ח','ל','ך','ף','ז','ס','ב','ה','נ','מ','צ','ת','ץ'];
 
             // === NEW: State management for guesses ===
@@ -134,15 +160,23 @@
                 });
             }
 
+            // Replace the existing openGuessModal function in your play.html with this one.
+
             function openGuessModal(slotIndex) {
                 activeSlotIndex = slotIndex;
                 const player = gameState.lineup.find(p => p.index === slotIndex);
                 if (!player || typeof player.name !== 'string') return;
-                
+
+                // === THE FIX: Reset all state variables for the new player ===
+                keyboardLetterStatus = {}; // 1. Clears the keyboard colors
+                currentAttempt = 0;        // 2. Resets the guess to the first row
+                currentGuess = "";         // 3. Clears any partially typed guess
+                // =============================================================
+
                 const playerName = player.name;
                 modalTitle.textContent = `נחש את השחקן (עמדה: ${player.position})`;
-                wordleGrid.innerHTML = ''; // Clear previous grid
-                currentGuess = "";
+                wordleGrid.innerHTML = '';
+
                 const words = playerName.split(' ');
                 const reversedWords = words.reverse();
 
@@ -150,34 +184,37 @@
                 for (let i = 0; i < MAX_ATTEMPTS; i++) {
                     const row = document.createElement('div');
                     row.className = 'wordle-row';
-                    reversedWords.forEach((word, wordIndex) => {
-                    // Create the boxes for the current word ("אלברמן" first)
-                    for (let i = 0; i < word.length; i++) {
-                        const box = document.createElement('div');
-                        box.className = 'letter-box';
-                        row.appendChild(box);
-                    }
-                    if (wordIndex < reversedWords.length - 1) {
-                        const space = document.createElement('div');
-                        space.className = 'letter-box space';
-                        row.appendChild(space);
-                    }
-                    wordleGrid.appendChild(row);
-                })
-            }
-        
-
-                // Restore previous guesses if they exist
-                if (guessHistory[slotIndex]) {
-                    currentAttempt = guessHistory[slotIndex].length;
-                    guessHistory[slotIndex].forEach((attempt, index) => {
-                        displayFeedback(attempt.feedback, index, attempt.guess);
+                    
+                    // Use a separate copy of reversedWords to avoid altering the original
+                    [...reversedWords].forEach((word, wordIndex) => {
+                        // Create the boxes for the current word
+                        for (let j = 0; j < word.length; j++) {
+                            const box = document.createElement('div');
+                            box.className = 'letter-box';
+                            row.appendChild(box);
+                        }
+                        // Add a space, except for the last word
+                        if (wordIndex < reversedWords.length - 1) {
+                            const space = document.createElement('div');
+                            space.className = 'letter-box space';
+                            row.appendChild(space);
+                        }
                     });
-                } else {
-                    currentAttempt = 0;
-                    guessHistory[slotIndex] = [];
+                    wordleGrid.appendChild(row);
                 }
                 
+                // Restore previous guesses for THIS player, if any
+                if (guessHistory[slotIndex]) {
+                    guessHistory[slotIndex].forEach((attempt, index) => {
+                        updateKeyboardStatus(attempt.guess, attempt.feedback);
+                        displayFeedback(attempt.feedback, index, attempt.guess);
+                    });
+                    currentAttempt = guessHistory[slotIndex].length;
+                } else {
+                    guessHistory[slotIndex] = [];
+                }
+
+                applyKeyboardColors(); // Apply the fresh (or restored) keyboard colors
                 modal.style.display = 'flex';
             }
             
@@ -196,8 +233,11 @@
 
                     if (result.feedback) {
                         // Store guess in history
+                        const feedback = result.feedback.feedback;
                         guessHistory[activeSlotIndex].push({ guess: currentGuess, feedback: result.feedback.feedback });
                         // Display feedback on the current row
+                        updateKeyboardStatus(currentGuess, feedback);
+                        applyKeyboardColors();
                         displayFeedback(result.feedback.feedback, currentAttempt, currentGuess);
                         // Move to the next attempt
                         currentAttempt++;
@@ -292,6 +332,55 @@
                 keyboardContainer.appendChild(backspaceKey);
                 keyboardContainer.appendChild(submitKey);
             }
+            // === ADD THIS ENTIRE NEW FUNCTION ===
+// Applies colors to the on-screen keyboard based on the keyboardLetterStatus object
+            function applyKeyboardColors() {
+                const keys = keyboardContainer.querySelectorAll('.key');
+                keys.forEach(keyEl => {
+                    const letter = keyEl.textContent;
+                    // Remove old statuses
+                    keyEl.classList.remove('correct', 'present', 'absent');
+                    // Add new status if it exists
+                    if (keyboardLetterStatus[letter]) {
+                        keyEl.classList.add(keyboardLetterStatus[letter]);
+                    }
+                });
+            }
+
+            // === ADD THIS ENTIRE NEW FUNCTION ===
+            // Updates the keyboardLetterStatus object after a guess
+            function updateKeyboardStatus(guess, feedback) {
+                const guessChars = guess.split('');
+                
+                guessChars.forEach((char, index) => {
+                    const currentStatus = keyboardLetterStatus[char];
+                    const feedbackStatus = feedback[index];
+                    
+                    // Determine the new status based on the feedback number
+                    let newStatus;
+                    if (feedbackStatus === 2) newStatus = 'correct';
+                    else if (feedbackStatus === 1) newStatus = 'present';
+                    else newStatus = 'absent';
+                    
+                    // Only upgrade the status (Green > Yellow > Gray)
+                    if (newStatus === 'correct') {
+                        keyboardLetterStatus[char] = 'correct';
+                    } else if (newStatus === 'present' && currentStatus !== 'correct') {
+                        keyboardLetterStatus[char] = 'present';
+                    } else if (newStatus === 'absent' && !currentStatus) {
+                        keyboardLetterStatus[char] = 'absent';
+                    }
+                });
+            }
+
+            function showLanguageFeedback() {
+                clearTimeout(feedbackTimeout); // Reset timer if already active
+                keyboardFeedback.textContent = "יש להקליד בעברית";
+                keyboardFeedback.classList.add('visible');
+                feedbackTimeout = setTimeout(() => {
+                    keyboardFeedback.classList.remove('visible');
+                }, 2000); // Hide message after 2 seconds
+            }
             
             playerList.addEventListener('click', (event) => {
                 const row = event.target.closest('.player-row.unrevealed');
@@ -300,6 +389,40 @@
                     if (playerIndex) openGuessModal(playerIndex);
                 }
             });
+
+            // === REPLACE the old 'keydown' listener with this one ===
+            window.addEventListener('keydown', (event) => {
+                // Do nothing if the modal isn't open or if it's the Escape key
+                if (modal.style.display !== 'flex' || event.key === 'Escape') {
+                    return;
+                }
+
+                const key = event.key;
+                const hebrewAlphabet = 'אבגדהוזחטיכךלמםנןסעפףצץקרשת';
+                const englishAlphabet = 'abcdefghijklmnopqrstuvwxyz';
+
+                if (key === 'Enter') {
+                    event.preventDefault();
+                    submitGuess();
+                } else if (key === 'Backspace') {
+                    currentGuess = currentGuess.slice(0, -1);
+                    updateWordleGrid();
+                } else if (hebrewAlphabet.includes(key)) {
+                    event.preventDefault();
+                    const player = gameState.lineup.find(p => p.index === activeSlotIndex);
+                    if (!player) return;
+                    const maxLen = player.name.replace(/ /g, '').length;
+                    if (currentGuess.length < maxLen) {
+                        currentGuess += key;
+                        updateWordleGrid();
+                    }
+                } else if (englishAlphabet.includes(key.toLowerCase())) {
+                    // If an English letter is pressed, show the feedback
+                    event.preventDefault();
+                    showLanguageFeedback();
+                }
+            });
+            // (The existing modalClose.addEventListener line should come after this)
 
             modalClose.addEventListener('click', closeModal);
             window.addEventListener('keydown', (e) => { if (e.key === "Escape") closeModal(); });
