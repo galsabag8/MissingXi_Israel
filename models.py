@@ -8,6 +8,8 @@ class Team(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     team_name = db.Column(db.String(100), nullable=True)
     team_img_url = db.Column(db.String(200),nullable=True)
+    shirt_colors = db.Column(db.String(50), nullable=True)
+    text_color = db.Column(db.String(7), nullable=True)
 
 #relationships
 

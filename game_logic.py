@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from sqlalchemy import func
 from models import TeamFormation, db, Match, MatchLineup, Player, Team,MatchEvent # Note: Old riddle models removed!
 
+
 # Session Keys
 GAME_SESSION_KEY = "current_game_lineup"
 EXPOSED_PLAYERS_KEY = "exposed_players"
@@ -31,6 +32,9 @@ def _get_game_data():
     else:
         target_team_id = match_obj.away_team_id
         target_team_name = match_obj.away_team.team_name
+    
+    target_team = db.session.get(Team, target_team_id)
+    competition_title = match_obj.competition.split(':', 1)[0].strip()
 
     # 3. Get the starting lineup (MatchLineup joined to Player)
     formation_record = db.session.execute(
@@ -69,10 +73,16 @@ def _get_game_data():
     return {
         "match_id": match_obj.id,
         "match_date": match_obj.date.isoformat(),
-        "competition": match_obj.competition,
+        "competition": competition_title,
         "home_team_name": match_obj.home_team.team_name,
         "away_team_name":match_obj.away_team.team_name,
+        "home_team_img": match_obj.home_team.team_img_url,
+        "away_team_img": match_obj.away_team.team_img_url,
+        "score_home": match_obj.score_home,          
+        "score_away": match_obj.score_away,
         "target_team_name":target_team_name,
+        "shirt_colors": target_team.shirt_colors, # Use the new plural column
+        "text_color": target_team.text_color,
         "lineup": lineup_data, # List of player dictionaries
         "lineup_count": len(lineup_data),
         "team_formation":team_formation_str
@@ -94,9 +104,8 @@ def start_new_game():
     return get_game_state()
 
 def _normalize_name(name: str):
-    """Normalizes names by converting to lowercase and stripping spaces."""
-    # We remove spaces to simplify letter comparison for Wordle-style feedback
-    return name.strip().replace(' ', '')
+    """Normalizes names by converting to lowercase, stripping spaces, and removing apostrophes."""
+    return name.strip().replace(' ', '').replace("'", "") # Add .replace("'", "")s
 
 def _get_feedback(correct_name: str, guess: str):
     """
@@ -208,16 +217,21 @@ def get_game_state(message: str = None):
     
     for i, player in enumerate(game_data['lineup']):
         is_revealed = bool(exposed[i])
+        player_name = player['name']
+        apostrophe_indices = [idx for idx, char in enumerate(player_name) if char == "'"]
+
         
         lineup_presentation.append({
             "index": i + 1,
             "position": player['position'],
             "is_revealed": is_revealed,
             # If revealed, show the name, ID, and image. If not, mask the name length.
-            "name": player['name'],
+            "name": player_name,
             "revealed_name": player['name'] if is_revealed else None,
             "player_img_url": player['img_url'] if is_revealed else None,
-            "name_length": len(player['name']), # Used for the Wordle-style display (boxes)
+            "player_stats" : player['player_stats'],
+            "guess_length": len(_normalize_name(player_name)),
+            "apostrophe_indices": apostrophe_indices, # Used for the Wordle-style display (boxes)
             "player_id": player['id'] if is_revealed else None,
             "jersey_number":player["jersey_number"]
         })
@@ -225,9 +239,18 @@ def get_game_state(message: str = None):
     state = {
         "is_finished": is_finished,
         "match_id": game_data['match_id'],
-        "competition": game_data['competition'],
         "match_date": game_data['match_date'],
+        "competition_title": game_data['competition'],
+        "home_team_name": game_data['home_team_name'],
+        "home_team_img_url": game_data['home_team_img'],
+        "away_team_name": game_data['away_team_name'],
+        "away_team_img_url": game_data['away_team_img'],
+        "score_home": game_data['score_home'],
+        "score_away": game_data['score_away'], 
         "target_team_name": game_data['target_team_name'],
+        "team_formation": game_data['team_formation'],
+        "shirt_colors":game_data['shirt_colors'],
+        "text_color":game_data['text_color'],
         "lineup": lineup_presentation,
         "message": message or ("Game over!" if is_finished else "Ready to guess.")
     }
