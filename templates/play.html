@@ -7,6 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <style>
         :root {
@@ -16,9 +17,48 @@
             --error-color: #dc3545; --pitch-bg: #4CAF50; --pitch-line: #FFF;
         }
         body {
-            font-family: 'Heebo', sans-serif; background-color: var(--bg-color); color: var(--text-color);
-            margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center;
+            /* === UPDATED STYLES === */
+            font-family: 'Poppins', 'Heebo', sans-serif; /* Poppins first, Heebo as fallback */
+            /* Subtle gradient background */
+            background: linear-gradient(135deg, #e0eafc 0%, #cfdef3 100%); 
+            color: #333; /* Keep text color */
+            margin: 0; 
+            padding: 20px; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center;
+            min-height: 100vh; /* Ensure gradient covers full height */
+            text-align: center;
+             /* Smooth font rendering */
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
+
+        /* Optional: Adjust header H1 for the new font */
+        h1 { 
+            font-size: 2.8rem; /* Slightly larger */
+            color: #1a237e; 
+            font-weight: 700; /* Bolder */
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.1); /* Subtle shadow */
+        }
+
+        /* Optional: Add a subtle border-radius to the pitch */
+        #pitch {
+            /* ... existing pitch styles ... */
+            border-radius: 15px; /* Slightly more rounded */
+        }
+
+        /* Ensure modal looks good on new background */
+         #modal-content {
+             background-color: #ffffff; /* Explicit white background */
+             /* ... other modal styles ... */
+         }
+
+        /* Ensure player list rows look good (if you switch back) */
+         .player-row {
+             background-color: #ffffff; /* Explicit white background */
+              /* ... other player row styles ... */
+         }
         header { width: 100%; max-width: 600px; margin-bottom: 20px; text-align: center; }
         h1 { font-size: 2.5rem; color: #1a237e; }
         #game-info { font-size: 1.1rem; color: #555; }
@@ -120,6 +160,9 @@
             font-size: 1.5rem;
             font-weight: bold;
             color: var(--primary-color);
+            text-align: center; 
+            /* You might also want to ensure it has enough space */
+            flex-grow: 1; /* Allows it to take up available space between team names */
         }
         /* Style the target team name */
         .team-info.target-team span {
@@ -434,68 +477,94 @@
 
             // In play.html, replace the entire getLineupWithPositions function
 
+            // Replace your existing getLineupWithPositions function with this one
+
+            // In play.html, replace the entire getLineupWithPositions function
+
             function getLineupWithPositions(lineup, formationStr) {
-                // --- Step 1: Define the coordinate templates for common formations ---
-                const formationTemplates = {
-                    "4-4-2": [
-                        { x: 50, y: 90 }, // GK
-                        { x: 15, y: 75 }, { x: 35, y: 78 }, { x: 65, y: 78 }, { x: 85, y: 75 }, // Defenders
-                        { x: 15, y: 50 }, { x: 35, y: 50 }, { x: 65, y: 50 }, { x: 85, y: 50 }, // Midfielders
-                        { x: 35, y: 20 }, { x: 65, y: 20 }  // Forwards
-                    ],
-                    "4-3-3": [
-                        { x: 50, y: 90 }, // GK
-                        { x: 15, y: 75 }, { x: 35, y: 78 }, { x: 65, y: 78 }, { x: 85, y: 75 }, // Defenders
-                        { x: 25, y: 50 }, { x: 50, y: 55 }, { x: 75, y: 50 }, // Midfielders
-                        { x: 20, y: 20 }, { x: 50, y: 18 }, { x: 80, y: 20 }  // Forwards
-                    ],
-                    "3-5-2": [
-                        { x: 50, y: 90 }, // GK
-                        { x: 25, y: 78 }, { x: 50, y: 80 }, { x: 75, y: 78 }, // Defenders
-                        { x: 10, y: 50 }, { x: 30, y: 55 }, { x: 50, y: 60 }, { x: 70, y: 55 }, { x: 90, y: 50 }, // Midfielders
-                        { x: 35, y: 20 }, { x: 65, y: 20 }  // Forwards
-                    ],
-                    "5-3-2": [
-                        { x: 50, y: 90 }, // GK
-                        { x: 10, y: 70 }, { x: 30, y: 78 }, { x: 50, y: 80 }, { x: 70, y: 78 }, { x: 90, y: 70 }, // 2 Wing-backs and 3 Centre-backs
-                        { x: 25, y: 50 }, { x: 50, y: 55 }, { x: 75, y: 50 }, // Midfielders
-                        { x: 35, y: 20 }, { x: 65, y: 20 }  // Forwards
-                    ],
-                    // Default formation if the provided one is not found
-                    "default": [
-                        { x: 50, y: 90 }, { x: 15, y: 75 }, { x: 35, y: 78 }, { x: 65, y: 78 }, { x: 85, y: 75 },
-                        { x: 15, y: 50 }, { x: 35, y: 50 }, { x: 65, y: 50 }, { x: 85, y: 50 }, { x: 35, y: 20 }, { x: 65, y: 20 }
-                    ]
+                // --- Step 1: Templates (No change here) ---
+                const formationTemplates = { /* ... keep all your formation templates ... */
+                    "4-4-2": [ { x: 50, y: 90 }, { x: 15, y: 75 }, { x: 35, y: 78 }, { x: 65, y: 78 }, { x: 85, y: 75 }, { x: 15, y: 50 }, { x: 35, y: 50 }, { x: 65, y: 50 }, { x: 85, y: 50 }, { x: 35, y: 20 }, { x: 65, y: 20 } ],
+                    "4-3-3": [ { x: 50, y: 90 }, { x: 15, y: 75 }, { x: 35, y: 78 }, { x: 65, y: 78 }, { x: 85, y: 75 }, { x: 25, y: 50 }, { x: 50, y: 55 }, { x: 75, y: 50 }, { x: 20, y: 20 }, { x: 50, y: 18 }, { x: 80, y: 20 } ],
+                    "3-5-2": [ { x: 50, y: 90 }, { x: 25, y: 78 }, { x: 50, y: 80 }, { x: 75, y: 78 }, { x: 10, y: 50 }, { x: 30, y: 55 }, { x: 50, y: 60 }, { x: 70, y: 55 }, { x: 90, y: 50 }, { x: 35, y: 20 }, { x: 65, y: 20 } ],
+                    "5-3-2": [ { x: 50, y: 90 }, { x: 10, y: 70 }, { x: 30, y: 78 }, { x: 50, y: 80 }, { x: 70, y: 78 }, { x: 90, y: 70 }, { x: 25, y: 50 }, { x: 50, y: 55 }, { x: 75, y: 50 }, { x: 35, y: 20 }, { x: 65, y: 20 } ],
+                    "4-5-1": [ { x: 50, y: 90 }, { x: 15, y: 75 }, { x: 35, y: 78 }, { x: 65, y: 78 }, { x: 85, y: 75 }, { x: 10, y: 50 }, { x: 30, y: 55 }, { x: 50, y: 60 }, { x: 70, y: 55 }, { x: 90, y: 50 }, { x: 50, y: 20 } ],
+                    "4-2-4": [ { x: 50, y: 90 }, { x: 15, y: 75 }, { x: 35, y: 78 }, { x: 65, y: 78 }, { x: 85, y: 75 }, { x: 30, y: 55 }, { x: 70, y: 55 }, { x: 10, y: 25 }, { x: 35, y: 20 }, { x: 65, y: 20 }, { x: 90, y: 25 } ],
+                    "5-1-4": [ { x: 50, y: 90 }, { x: 10, y: 70 }, { x: 30, y: 78 }, { x: 50, y: 80 }, { x: 70, y: 78 }, { x: 90, y: 70 }, { x: 50, y: 60 }, { x: 10, y: 25 }, { x: 35, y: 20 }, { x: 65, y: 20 }, { x: 90, y: 25 } ],
+                    "5-2-3": [ { x: 50, y: 90 }, { x: 10, y: 70 }, { x: 30, y: 78 }, { x: 50, y: 80 }, { x: 70, y: 78 }, { x: 90, y: 70 }, { x: 30, y: 55 }, { x: 70, y: 55 }, { x: 20, y: 20 }, { x: 50, y: 18 }, { x: 80, y: 20 } ],
+                    "3-3-4": [ { x: 50, y: 90 }, { x: 25, y: 78 }, { x: 50, y: 80 }, { x: 75, y: 78 }, { x: 25, y: 50 }, { x: 50, y: 55 }, { x: 75, y: 50 }, { x: 10, y: 25 }, { x: 35, y: 20 }, { x: 65, y: 20 }, { x: 90, y: 25 } ],
+                    "3-4-3": [ { x: 50, y: 90 }, { x: 25, y: 78 }, { x: 50, y: 80 }, { x: 75, y: 78 }, { x: 15, y: 50 }, { x: 35, y: 55 }, { x: 65, y: 55 }, { x: 85, y: 50 }, { x: 20, y: 20 }, { x: 50, y: 18 }, { x: 80, y: 20 } ],
+                    "5-4-1": [ { x: 50, y: 90 }, { x: 10, y: 70 }, { x: 30, y: 78 }, { x: 50, y: 80 }, { x: 70, y: 78 }, { x: 90, y: 70 }, { x: 15, y: 50 }, { x: 35, y: 50 }, { x: 65, y: 50 }, { x: 85, y: 50 }, { x: 50, y: 20 } ],
+                    "default": [ { x: 50, y: 90 }, { x: 15, y: 75 }, { x: 35, y: 78 }, { x: 65, y: 78 }, { x: 85, y: 75 }, { x: 15, y: 50 }, { x: 35, y: 50 }, { x: 65, y: 50 }, { x: 85, y: 50 }, { x: 35, y: 20 }, { x: 65, y: 20 } ]
                 };
 
-                // --- Step 2: Sort players into their lines (GK, DF, MF, FW) ---
+                // --- Step 2: Update Position Mappings ---
                 const positionMap = [
                     { key: 'GK', names: ['GOAL'], line: 0 },
                     { key: 'DF', names: ['BACK', 'DEFEN'], line: 1 },
-                    { key: 'MF', names: ['MIDFIELD', 'WINGER'], line: 2 },
-                    { key: 'FW', names: ['FORWARD', 'STRIKER', 'ATTACK'], line: 3 }
+                    { key: 'MF', names: ['MIDFIELD'], line: 2 }, // Removed 'WINGER'
+                    // Moved 'WINGER' here to the Attack category
+                    { key: 'FW', names: ['FORWARD', 'STRIKER', 'ATTACK', 'WINGER'], line: 3 }
                 ];
+
+                // --- Step 3: Update Sorting Order Map ---
+                const gamePosOrder = {
+                    // GK
+                    "Goalkeeper": 1,
+                    // Defence (Sorted Right to Left)
+                    "Left-Back": 10,
+                    "Centre-Back": 11,
+                    "Defender": 11,
+                    "Right-Back": 12,
+                    // Midfield (Sorted Right to Left)
+                    "Left Midfield": 20,
+                    "Defensive Midfield": 21, // DM slightly behind CM
+                    "Central Midfield": 22,
+                    "Midfielder": 22,
+                    "Attacking Midfield": 23, // AM slightly ahead of CM
+                    "Right Midfield": 24,
+                    // Attack (Sorted Right Winger -> Strikers -> Left Winger)
+                    "Left Winger": 30,
+                    "Second Striker": 31,
+                    "Centre-Forward": 32,
+                    "Striker": 32,
+                    "Right Winger": 33,
+                    // Fallback
+                    "Unknown": 99
+                };
+
+                // --- Step 4: Sort the lineup using the updated game_pos order ---
                 const sortedLineup = [...lineup].sort((a, b) => {
-                    const lineA = positionMap.find(p => p.names.some(n => a.position.toUpperCase().includes(n)))?.line ?? 4;
-                    const lineB = positionMap.find(p => p.names.some(n => b.position.toUpperCase().includes(n)))?.line ?? 4;
-                    return lineA - lineB;
+                    const posA_str = a.game_pos || a.position || 'Unknown';
+                    const posB_str = b.game_pos || b.position || 'Unknown';
+                    const orderA = gamePosOrder[posA_str] || 99;
+                    const orderB = gamePosOrder[posB_str] || 99;
+                    if (orderA !== orderB) {
+                        return orderA - orderB;
+                    }
+                    return a.index - b.index; // Stable sort using original index
                 });
 
-                // --- Step 3: Select the template and map players to coordinates ---
-                const template = formationTemplates[formationStr] || formationTemplates["default"];
-                
+                // --- Step 5: Map sorted players to the selected template ---
+                const validFormationStr = formationTemplates[formationStr] ? formationStr : "default";
+                const template = formationTemplates[validFormationStr];
+
                 const result = [];
                 for (let i = 0; i < sortedLineup.length; i++) {
-                    // Assign player `i` to coordinate slot `i` from the template
-                    if (template[i]) {
-                        result.push({
-                            player: sortedLineup[i],
-                            position: template[i]
-                        });
-                    }
+                    if (i >= template.length) break;
+                    result.push({
+                        player: sortedLineup[i],
+                        position: template[i]
+                    });
                 }
-                
-                return result;
+
+                // --- Step 6: Re-order results to match the original lineup index ---
+                const finalPositions = lineup.map(originalPlayer => {
+                    const found = result.find(item => item.player.index === originalPlayer.index);
+                    return found || { player: originalPlayer, position: { x: 50, y: 50 + (originalPlayer.index || 0) * 2 } };
+                });
+
+                return finalPositions.slice(0, 11);
             }
 
             function openGuessModal(slotIndex) {

@@ -3,7 +3,7 @@ import random
 from flask import session
 from datetime import datetime, timezone
 from sqlalchemy import func
-from models import TeamFormation, db, Match, MatchLineup, Player, Team,MatchEvent # Note: Old riddle models removed!
+from models import TeamFormation, db, Match, MatchLineup, Player, Team,MatchEvent
 
 
 # Session Keys
@@ -62,7 +62,8 @@ def _get_game_data():
                 "position": line.player.position,
                 "img_url": line.player.player_image_url,
                 "player_stats":[event.event_type for event in player_events],
-                "jersey_number":line.jersey_number
+                "jersey_number":line.jersey_number,
+                "game_pos": line.game_pos
                 
             })
         
@@ -233,7 +234,8 @@ def get_game_state(message: str = None):
             "guess_length": len(_normalize_name(player_name)),
             "apostrophe_indices": apostrophe_indices, # Used for the Wordle-style display (boxes)
             "player_id": player['id'] if is_revealed else None,
-            "jersey_number":player["jersey_number"]
+            "jersey_number":player["jersey_number"],
+            "game_pos": player['game_pos']
         })
     
     state = {

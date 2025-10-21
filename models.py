@@ -64,6 +64,7 @@ class MatchLineup(db.Model):
     player_id = db.Column(db.Integer, db.ForeignKey("players.id"), nullable=False)
     jersey_number =db.Column(db.String(50), nullable=True)
     team_id = db.Column(db.Integer, db.ForeignKey("teams.id"), nullable=False)
+    game_pos = db.Column(db.String(50), nullable=True)
 
     #relationships
     match = db.relationship("Match", back_populates="lineups")
