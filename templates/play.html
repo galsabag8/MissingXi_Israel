@@ -296,6 +296,69 @@
             cursor: pointer; 
             line-height: 1; 
         }
+        @media (max-width: 600px) {
+            
+            /* Make the header smaller */
+            h1 {
+                font-size: 2.2rem;
+            }
+
+            /* Make the "How to Play" button smaller */
+            .info-btn {
+                font-size: 0.9rem;
+                padding: 6px 10px;
+                top: 15px;
+                right: 15px;
+            }
+
+            /* Make the shirts and numbers on the pitch smaller */
+            .player-shirt {
+                font-size: 45px; 
+            }
+            .jersey-number {
+                font-size: 1.2rem;
+            }
+
+            /* Make the Wordle grid boxes smaller to fit long names */
+            .letter-box {
+                width: 25px;  /* was 30px */
+                height: 25px; /* was 30px */
+                font-size: 1.1rem;
+            }
+
+            /* Make the virtual keyboard slightly smaller */
+            #keyboard {
+                gap: 3px; /* Tighter keys */
+            }
+            .key {
+                padding: 8px 4px; /* Less padding */
+                font-size: 1rem;
+            }
+            .match-details {
+            padding: 8px 5px; /* Reduce padding slightly */
+            align-items: flex-start; /* Align to the top */
+            }
+            
+            .team-info {
+                /* This is the main fix: stack logo and name */
+                flex-direction: column; 
+                flex: 1; /* Let the team info grow and shrink */
+                font-size: 0.85rem; /* Smaller team names */
+                gap: 5px; /* Tighter gap */
+                text-align: center; /* Center the names */
+            }
+            
+            .team-info img {
+                width: 30px; /* Smaller logos */
+                height: 30px;
+            }
+            
+            .score {
+                font-size: 1.3rem; /* Slightly smaller score text */
+                margin-top: 10px; /* Give it some space from the top */
+            }
+        }
+
         #wordle-grid { display: flex; flex-direction: column; gap: 5px; margin: 20px 0; }
         .wordle-row { display: flex; flex-direction: row-reverse; justify-content: center; gap: 4px; }
         .letter-box { width: 30px; height: 30px; border: 2px solid #ccc; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; font-weight: bold; border-radius: 5px; }
@@ -313,70 +376,73 @@
         #key-submit { grid-column: span 3; background-color: #28a745; color: white; }
         #key-backspace { grid-column: span 2; background-color: var(--error-color); color: white; }
         
+        
     </style>
 </head>
 <body>
     <div id="loader-overlay">
         <div class="loader-spinner"></div>
     </div>
-    <button id="how-to-play-btn" class="info-btn">
-        <i class="fa-solid fa-circle-question"></i> איך משחקים?
-    </button>
-    <header>
-        <h1>נחש את ההרכב</h1>
-        <div id="game-info">
-            <p id="competition-title"</p>
-            <div class="match-details">
-                <div class="team-info home-team">
-                    <img id="home-team-logo" src="https://via.placeholder.com/40" alt="Home Team Logo">
-                    <span id="home-team-name">Home Team</span>
+    <div id="app-container" style="display: none;"></div>
+        <button id="how-to-play-btn" class="info-btn">
+            <i class="fa-solid fa-circle-question"></i> איך משחקים?
+        </button>
+        <header>
+            <h1>נחש את ההרכב</h1>
+            <div id="game-info">
+                <p id="competition-title"</p>
+                <div class="match-details">
+                    <div class="team-info home-team">
+                        <img id="home-team-logo" src="https://via.placeholder.com/40" alt="Home Team Logo">
+                        <span id="home-team-name">Home Team</span>
+                    </div>
+                    <div class="score">
+                        <span id="home-score">-</span> : <span id="away-score">-</span>
+                    </div>
+                    <div class="team-info away-team">
+                        <img id="away-team-logo" src="https://via.placeholder.com/40" alt="Away Team Logo">
+                        <span id="away-team-name">Away Team</span>
+                        
+                    </div>
                 </div>
-                <div class="score">
-                    <span id="home-score">-</span> : <span id="away-score">-</span>
-                </div>
-                <div class="team-info away-team">
-                    <span id="away-team-name">Away Team</span>
-                    <img id="away-team-logo" src="https://via.placeholder.com/40" alt="Away Team Logo">
-                </div>
+                <p id="target-team-notice" style="font-weight: bold; margin-top: 10px;"></p>
             </div>
-            <p id="target-team-notice" style="font-weight: bold; margin-top: 10px;"></p>
-        </div>
-    </header>
-    <main id="pitch-container">
-        <div id="pitch"></div>
-    </main>
+        </header>
+        <main id="pitch-container">
+            <div id="pitch"></div>
+        </main>
 
-    <div id="how-to-play-modal" class="modal-overlay">
-        <div class="modal-content-box">
-            <span id="how-to-play-close" class="modal-close-btn">&times;</span>
-            <h3>איך משחקים?</h3>
-            <p>המטרה שלך היא לנחש את כל 11 השחקנים בהרכב הפותח של הקבוצה.</p>
-            <ul style="text-align: right; margin-right: 20px;">
-                <li>לחץ על חולצה ריקה כדי להתחיל לנחש.</li>
-                <li>תקבל נסיונות ללא הגבלה לנחש את השם המלא של השחקן.</li>
-                <li>האותיות יקבלו צבעים כמו בוורדל:
-                    <ul style="list-style-type: none; padding-right: 15px;">
-                        <li><span style="color: var(--feedback-correct); font-weight: bold;">■</span> אות נכונה במיקום הנכון.</li>
-                        <li><span style="color: var(--feedback-present); font-weight: bold;">■</span> אות נכונה במיקום לא נכון.</li>
-                        <li><span style="color: var(--feedback-absent); font-weight: bold;">■</span> אות לא קיימת בשם.</li>
-                    </ul>
-                </li>
-                <li>הקבוצה לניחוש מודגשת בכותרת.</li>
-                <li>נחש את כל 11 השחקנים כדי לנצח!</li>
-            </ul>
-        </div>
-    </div>
-    
-    <div id="guess-modal" class="modal-overlay">
-        <div id="modal-content" class="modal-content-box">
-            <span id="modal-close" class="modal-close-btn">&times;</span>
-            <h3 id="modal-title">נחש את השחקן</h3>
-            <div id="wordle-grid"></div>
-            <div id="keyboard-feedback"></div>
-            <div id="keyboard"></div>
+        <div id="how-to-play-modal" class="modal-overlay">
+            <div class="modal-content-box">
+                <span id="how-to-play-close" class="modal-close-btn">&times;</span>
+                <h3>איך משחקים?</h3>
+                <p>המטרה שלך היא לנחש את כל 11 השחקנים בהרכב הפותח של הקבוצה.</p>
+                <ul style="text-align: right; margin-right: 20px;">
+                    <li>לחץ על חולצה ריקה כדי להתחיל לנחש.</li>
+                    <li>תקבל נסיונות ללא הגבלה לנחש את השם המלא של השחקן.</li>
+                    <li>האותיות יקבלו צבעים כמו בוורדל:
+                        <ul style="list-style-type: none; padding-right: 15px;">
+                            <li><span style="color: var(--feedback-correct); font-weight: bold;">■</span> אות נכונה במיקום הנכון.</li>
+                            <li><span style="color: var(--feedback-present); font-weight: bold;">■</span> אות נכונה במיקום לא נכון.</li>
+                            <li><span style="color: var(--feedback-absent); font-weight: bold;">■</span> אות לא קיימת בשם.</li>
+                        </ul>
+                    </li>
+                    <li>הקבוצה לניחוש מודגשת בכותרת.</li>
+                    <li>נחש את כל 11 השחקנים כדי לנצח!</li>
+                </ul>
+            </div>
         </div>
         
-    </div>
+        <div id="guess-modal" class="modal-overlay">
+            <div id="modal-content" class="modal-content-box">
+                <span id="modal-close" class="modal-close-btn">&times;</span>
+                <h3 id="modal-title">נחש את השחקן</h3>
+                <div id="wordle-grid"></div>
+                <div id="keyboard-feedback"></div>
+                <div id="keyboard"></div>
+            </div>
+            
+        </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -459,6 +525,7 @@
                         loaderOverlay.style.display = 'none'; // Remove it after fade out
                     }, 300); // 300ms matches the CSS transition
                     // --- END BLOCK ---
+                    document.getElementById('app-container').style.display = 'block';
                 }
             }
             
