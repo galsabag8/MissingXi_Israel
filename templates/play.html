@@ -10,6 +10,35 @@
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <style>
+
+#loader-overlay {
+            position: fixed; /* Cover the entire screen */
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            /* Use your body's gradient for a seamless look */
+            background: linear-gradient(135deg, #e0eafc 0%, #cfdef3 100%); 
+            display: flex; /* Center the spinner */
+            align-items: center;
+            justify-content: center;
+            z-index: 9999; /* On top of everything */
+            transition: opacity 0.3s ease; /* For a smooth fade-out */
+        }
+
+        .loader-spinner {
+            border: 8px solid #cfdef3; /* Light part of your gradient */
+            border-top: 8px solid var(--primary-color); /* Your theme blue */
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
         :root {
             --bg-color: #f0f2f5; --text-color: #333; --primary-color: #3F51B5;
             --modal-bg: rgba(0, 0, 0, 0.7); --modal-content-bg: #fefefe; --key-bg: #e0e0e0;
@@ -211,12 +240,62 @@
         .goal-count {
             font-weight: bold;
         }
+        .info-btn {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 1rem;
+            font-family: 'Poppins', 'Heebo', sans-serif;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            
+            /* --- ADDED STYLES --- */
+            position: absolute;
+            top: 20px;
+            right: 20px; /* Positions it 20px from the top-right corner */
+            z-index: 10; /* Ensures it's above the pitch */
+        }
+        .info-btn:hover {
+            background-color: #1a237e; /* Darker blue */
+        }
+        .info-btn i {
+            margin-left: 5px; /* Space between icon and text */
+        }
         
         /* Modal and keyboard styles remain the same as your working version */
-        #guess-modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: var(--modal-bg); align-items: center; justify-content: center; }
-        #modal-content { background-color: var(--modal-content-bg); padding: 20px; border-radius: 10px; width: 90%; max-width: 500px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); animation: modalOpen 0.3s; text-align: center; }
+        .modal-overlay { 
+            display: none; 
+            position: fixed; 
+            z-index: 1000; 
+            left: 0; 
+            top: 0; 
+            width: 100%; 
+            height: 100%; 
+            background-color: var(--modal-bg); 
+            align-items: center; 
+            justify-content: center; 
+        }
+        .modal-content-box { 
+            background-color: var(--modal-content-bg); 
+            padding: 20px; 
+            border-radius: 10px; 
+            width: 90%; 
+            max-width: 500px; 
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5); 
+            animation: modalOpen 0.3s; 
+            text-align: center; 
+            position: relative; /* Added for close button positioning */
+        }
         @keyframes modalOpen { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
-        #modal-close { float: left; font-size: 28px; font-weight: bold; cursor: pointer; line-height: 1; }
+        .modal-close-btn { 
+            float: left; /* Stays on the left for RTL */
+            font-size: 28px; 
+            font-weight: bold; 
+            cursor: pointer; 
+            line-height: 1; 
+        }
         #wordle-grid { display: flex; flex-direction: column; gap: 5px; margin: 20px 0; }
         .wordle-row { display: flex; flex-direction: row-reverse; justify-content: center; gap: 4px; }
         .letter-box { width: 30px; height: 30px; border: 2px solid #ccc; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; font-weight: bold; border-radius: 5px; }
@@ -237,10 +316,16 @@
     </style>
 </head>
 <body>
+    <div id="loader-overlay">
+        <div class="loader-spinner"></div>
+    </div>
+    <button id="how-to-play-btn" class="info-btn">
+        <i class="fa-solid fa-circle-question"></i> איך משחקים?
+    </button>
     <header>
         <h1>נחש את ההרכב</h1>
         <div id="game-info">
-            <p id="competition-title">טוען משחק...</p>
+            <p id="competition-title"</p>
             <div class="match-details">
                 <div class="team-info home-team">
                     <img id="home-team-logo" src="https://via.placeholder.com/40" alt="Home Team Logo">
@@ -260,21 +345,44 @@
     <main id="pitch-container">
         <div id="pitch"></div>
     </main>
+
+    <div id="how-to-play-modal" class="modal-overlay">
+        <div class="modal-content-box">
+            <span id="how-to-play-close" class="modal-close-btn">&times;</span>
+            <h3>איך משחקים?</h3>
+            <p>המטרה שלך היא לנחש את כל 11 השחקנים בהרכב הפותח של הקבוצה.</p>
+            <ul style="text-align: right; margin-right: 20px;">
+                <li>לחץ על חולצה ריקה כדי להתחיל לנחש.</li>
+                <li>תקבל נסיונות ללא הגבלה לנחש את השם המלא של השחקן.</li>
+                <li>האותיות יקבלו צבעים כמו בוורדל:
+                    <ul style="list-style-type: none; padding-right: 15px;">
+                        <li><span style="color: var(--feedback-correct); font-weight: bold;">■</span> אות נכונה במיקום הנכון.</li>
+                        <li><span style="color: var(--feedback-present); font-weight: bold;">■</span> אות נכונה במיקום לא נכון.</li>
+                        <li><span style="color: var(--feedback-absent); font-weight: bold;">■</span> אות לא קיימת בשם.</li>
+                    </ul>
+                </li>
+                <li>הקבוצה לניחוש מודגשת בכותרת.</li>
+                <li>נחש את כל 11 השחקנים כדי לנצח!</li>
+            </ul>
+        </div>
+    </div>
     
-    <div id="guess-modal">
-        <div id="modal-content">
-            <span id="modal-close">&times;</span>
+    <div id="guess-modal" class="modal-overlay">
+        <div id="modal-content" class="modal-content-box">
+            <span id="modal-close" class="modal-close-btn">&times;</span>
             <h3 id="modal-title">נחש את השחקן</h3>
             <div id="wordle-grid"></div>
             <div id="keyboard-feedback"></div>
             <div id="keyboard"></div>
         </div>
+        
     </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const pitch = document.getElementById('pitch');
             const competitionText = document.getElementById('competition-text');
+            const loaderOverlay = document.getElementById('loader-overlay');
             const teamText = document.getElementById('team-text');
             const modal = document.getElementById('guess-modal');
             const modalClose = document.getElementById('modal-close');
@@ -282,6 +390,9 @@
             const wordleGrid = document.getElementById('wordle-grid');
             const keyboardContainer = document.getElementById('keyboard');
             const keyboardFeedback = document.getElementById('keyboard-feedback');
+            const howToPlayModal = document.getElementById('how-to-play-modal');
+            const howToPlayBtn = document.getElementById('how-to-play-btn');
+            const howToPlayClose = document.getElementById('how-to-play-close');
 
             let gameState = null;
             let activeSlotIndex = null;
@@ -313,6 +424,14 @@
                 } catch (error) {
                     competitionText.textContent = "שגיאה בטעינת המשחק. נסה לרענן.";
                     console.error("Error starting game:", error);
+                } finally {
+                    // --- ADD THIS BLOCK ---
+                    // This will run after the 'try' or 'catch' is finished
+                    loaderOverlay.style.opacity = 0;
+                    setTimeout(() => {
+                        loaderOverlay.style.display = 'none'; // Remove it after fade out
+                    }, 300); // 300ms matches the CSS transition
+                    // --- END BLOCK ---
                 }
             }
             
@@ -567,13 +686,36 @@
                 return finalPositions.slice(0, 11);
             }
 
+            function createWordleRow(nameParts) {
+                const row = document.createElement('div');
+                row.className = 'wordle-row';
+
+                // Rebuild the structure for each row
+                nameParts.slice().reverse().forEach(part => { // Reverse for RTL display
+                    if (part === ' ' || part === "'") {
+                        const separator = document.createElement('div');
+                        separator.className = 'separator';
+                        separator.textContent = part;
+                        row.appendChild(separator);
+                    } else {
+                        // If it's a word, create letter boxes for it
+                        for (let j = 0; j < part.length; j++) {
+                            const box = document.createElement('div');
+                            box.className = 'letter-box';
+                            row.appendChild(box);
+                        }
+                    }
+                });
+                return row;
+            }
+
             function openGuessModal(slotIndex) {
                 activeSlotIndex = slotIndex;
                 const player = gameState.lineup.find(p => p.index === slotIndex);
                 if (!player || typeof player.name !== 'string') return;
                 
                 keyboardLetterStatus = {};
-                currentAttempt = 0;
+                //currentAttempt = 0;
                 currentGuess = "";
 
                 const playerName = player.name;
@@ -581,7 +723,7 @@
                 wordleGrid.innerHTML = '';
                 
                 const nameParts = playerName.split(/([ '])/).filter(part => part.length > 0);
-
+                /*
                 for (let i = 0; i < MAX_ATTEMPTS; i++) {
                     const row = document.createElement('div');
                     row.className = 'wordle-row';
@@ -605,15 +747,23 @@
                     });
                     wordleGrid.appendChild(row);
                 }
+                */
                 if (guessHistory[slotIndex]) {
                     guessHistory[slotIndex].forEach((attempt, index) => {
+                        const pastRow = createWordleRow(nameParts);
+                        wordleGrid.appendChild(pastRow);
+
                         updateKeyboardStatus(attempt.guess, attempt.feedback);
                         displayFeedback(attempt.feedback, index, attempt.guess);
                     });
                     currentAttempt = guessHistory[slotIndex].length;
                 } else {
                     guessHistory[slotIndex] = [];
+                    currentAttempt = 0;
                 }
+
+                const newEmptyRow = createWordleRow(nameParts);
+                wordleGrid.appendChild(newEmptyRow);
                 
                 applyKeyboardColors();
                 modal.style.display = 'flex';
@@ -621,7 +771,8 @@
             
             async function submitGuess() {
                 const player = gameState.lineup.find(p => p.index === activeSlotIndex);
-                if (!player || currentAttempt >= MAX_ATTEMPTS || currentGuess.length !== player.guess_length) return;
+                //if (!player || currentAttempt >= MAX_ATTEMPTS || currentGuess.length !== player.guess_length) return;
+                if (!player || currentGuess.length !== player.guess_length) return;
                 try {
                     const response = await fetch('/guess', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ slot_index: activeSlotIndex, player: currentGuess }) });
                     if (!response.ok) throw new Error(`Guess submission failed`);
@@ -634,7 +785,10 @@
                         displayFeedback(feedback, currentAttempt, currentGuess);
                         currentAttempt++;
                         currentGuess = "";
-                        if (currentAttempt >= MAX_ATTEMPTS) { alert('אין לך ניחושים נוספים!'); }
+                        /*if (currentAttempt >= MAX_ATTEMPTS) { alert('אין לך ניחושים נוספים!'); }*/
+                        const nameParts = player.name.split(/([ '])/).filter(part => part.length > 0);
+                        const newEmptyRow = createWordleRow(nameParts);
+                        wordleGrid.appendChild(newEmptyRow);
                     } else {
                         gameState = result;
                         renderGame();
@@ -648,7 +802,7 @@
             }
             
             function updateWordleGrid() {
-                if (currentAttempt >= MAX_ATTEMPTS) return;
+                //if (currentAttempt >= MAX_ATTEMPTS) return;
                 const row = wordleGrid.children[currentAttempt];
                 const boxes = Array.from(row.querySelectorAll('.letter-box:not(.space)'));
                 const guessChars = currentGuess.split('');
@@ -756,7 +910,19 @@
             });
 
             modalClose.addEventListener('click', closeModal);
-            window.addEventListener('keydown', (e) => { if (e.key === "Escape") closeModal(); });
+            howToPlayBtn.addEventListener('click', () => {
+                howToPlayModal.style.display = 'flex';
+            });
+            howToPlayClose.addEventListener('click', () => {
+                howToPlayModal.style.display = 'none';
+            });
+
+            window.addEventListener('keydown', (e) => { 
+                if (e.key === "Escape") {
+                    closeModal(); // Closes the guess modal
+                    howToPlayModal.style.display = 'none'; // Closes the "how to play" modal
+                }
+            });
 
             createKeyboard();
             startGame();

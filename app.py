@@ -5,7 +5,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from models import db, Player, Team
 # Import the new game logic functions (start_new_game, check_guess, get_game_state)
-from game_logic import start_new_game, check_guess, get_game_state 
+from game_logic import start_new_game, check_guess, get_game_state,NUM_MATCHES 
 
 app = Flask(__name__)
 

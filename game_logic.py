@@ -1,39 +1,96 @@
 
 import random
 from flask import session
-from datetime import datetime, timezone
+import datetime
 from sqlalchemy import func
-from models import TeamFormation, db, Match, MatchLineup, Player, Team,MatchEvent
+from models import TeamFormation, db, Match, MatchLineup, Player, Team,MatchEvent,DailyGame
 
 
 # Session Keys
 GAME_SESSION_KEY = "current_game_lineup"
 EXPOSED_PLAYERS_KEY = "exposed_players"
+NUM_MATCHES = 3541
 
-def _utc_today():
-    """Returns today's date (UTC)"""
-    return datetime.now(timezone.utc).date()
+def get_or_create_daily_match():
+    """
+    Fetches the match and target team for today. If one hasn't been picked,
+    it picks a new unused match/team combo and saves it for today.
+    """
+    today = datetime.date.today()
+    
+    # 1. Check if a game has already been picked for today
+    daily_game_entry = db.session.query(DailyGame).filter_by(date=today).first()
+    
+    if daily_game_entry:
+        # Yes! Return the match and the target team side
+        return daily_game_entry.match, daily_game_entry.target_team_side
+        
+    # 2. No game picked for today. We need to pick one.
+    else:
+        target_match = None
+        target_side = None
 
-def _get_game_data():
-    """
-    Fetches a random match, selects a random team, and retrieves the starting lineup.
-    """
-    # 1. Get a random Match object
-    # Requires MatchLineup table to be seeded with data.
-    match_obj = db.session.execute(db.select(Match).order_by(func.random())).scalars().first()
+        # a) First, try to find a match where 'used_home' is false
+        target_match = db.session.query(Match).filter_by(used_home=False).order_by(db.func.random()).first()
+        if target_match:
+            target_side = 'home'
+            target_match.used_home = True
+        else:
+            # b) If no unused home teams, try to find one where 'used_away' is false
+            target_match = db.session.query(Match).filter_by(used_away=False).order_by(db.func.random()).first()
+            if target_match:
+                target_side = 'away'
+                target_match.used_away = True
+        
+        # c) --- HANDLE RESET ---
+        # If target_match is STILL None, it means all home/away are used
+        if not target_match:
+            print("All matches used! Resetting 'used_home' and 'used_away' for all matches.")
+            # Set all matches back to unused
+            db.session.query(Match).update({
+                Match.used_home: False,
+                Match.used_away: False
+            })
+            db.session.commit() # Commit the reset
+            
+            # Now, try again to pick a 'home' team (which must exist now)
+            target_match = db.session.query(Match).filter_by(used_home=False).order_by(db.func.random()).first()
+            target_side = 'home'
+            target_match.used_home = True
+
+        # 3. If we STILL don't have a match, the database is empty.
+        if not target_match:
+            return None, None # Will be caught by the route
+
+        # 4. We found a match! Now let's "lock it in."
+        new_daily_game = DailyGame(
+            date=today, 
+            match=target_match, 
+            target_team_side=target_side
+        )
+        db.session.add(new_daily_game)
+        
+        # 5. Commit all changes (the new DailyGame and the Match.used_... update)
+        db.session.commit()
+        
+        # 6. Return the newly picked match and side
+        return target_match, target_side
+
+def _get_game_data(match_obj:Match,target_side:str):
+    today_date_str = datetime.date.today().isoformat()
     
     if not match_obj:
         return {"error": "No matches found in the database. Please seed data."}
     
     # 2. Randomly select the target team (Home or Away)
-    if random.choice([True, False]):
+    if target_side == 'home':
         target_team_id = match_obj.home_team_id
         target_team_name = match_obj.home_team.team_name
     else:
         target_team_id = match_obj.away_team_id
         target_team_name = match_obj.away_team.team_name
     
-    target_team = db.session.get(Team, target_team_id)
+    target_team = match_obj.home_team if target_side=="home" else match_obj.away_team
     competition_title = match_obj.competition.split(':', 1)[0].strip()
 
     # 3. Get the starting lineup (MatchLineup joined to Player)
@@ -72,6 +129,7 @@ def _get_game_data():
 
 
     return {
+        "today_date":today_date_str,
         "match_id": match_obj.id,
         "match_date": match_obj.date.isoformat(),
         "competition": competition_title,
@@ -91,7 +149,8 @@ def _get_game_data():
 
 def start_new_game():
     """Initializes a new game session with a random match lineup."""
-    game_data = _get_game_data()
+    match_obj,target_side = get_or_create_daily_match()
+    game_data = _get_game_data(match_obj,target_side)
     
     if "error" in game_data:
         return game_data

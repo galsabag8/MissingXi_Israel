@@ -1,5 +1,5 @@
 from flask_sqlalchemy import SQLAlchemy
-
+import datetime
 
 db = SQLAlchemy()
 
@@ -48,6 +48,8 @@ class Match(db.Model):
     competition = db.Column(db.String(255), nullable=True)
     score_home = db.Column(db.Integer, default=0)
     score_away = db.Column(db.Integer, default=0)
+    used_home = db.Column(db.Boolean, default=False, nullable=False, index=True)
+    used_away = db.Column(db.Boolean, default=False, nullable=False, index=True)
 
     # Relationships
     home_team = db.relationship("Team", foreign_keys=[home_team_id], back_populates="home_matches")
@@ -106,4 +108,20 @@ class TeamFormation(db.Model):
 
     match = db.relationship("Match", back_populates="formations")
     team = db.relationship("Team", back_populates="formations")
+
+class DailyGame(db.Model):
+    __tablename__ = 'daily_games'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    
+    # We use db.Date (not DateTime) because we only care about the day
+    date = db.Column(db.Date, unique=True, index=True, nullable=False, default=datetime.date.today)
+    
+    # The foreign key to the match we picked
+    match_id = db.Column(db.Integer, db.ForeignKey('matches.id'), nullable=False)
+
+    target_team_side = db.Column(db.String(10), nullable=False)
+    
+    # A relationship to easily get the match object
+    match = db.relationship('Match')
     
