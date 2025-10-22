@@ -383,6 +383,7 @@
             const pitch = document.getElementById('pitch');
             const competitionText = document.getElementById('competition-text');
             const loaderOverlay = document.getElementById('loader-overlay');
+            const STORAGE_KEY = 'dailyGameState';
             const teamText = document.getElementById('team-text');
             const modal = document.getElementById('guess-modal');
             const modalClose = document.getElementById('modal-close');
@@ -420,6 +421,32 @@
                     const response = await fetch('/start_game');
                     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                     gameState = await response.json();
+                    const savedState = JSON.parse(localStorage.getItem(STORAGE_KEY));
+
+                    if (savedState && savedState.game_date === gameState.game_date) {
+                        // We have progress from today!
+                        console.log("Loading saved progress...");
+                        
+                        // 1. Load the guess history
+                        guessHistory = savedState.guess_history || {}; // <-- THIS LINE LOADS IT
+
+                        // 2. Apply revealed players to our new game state
+                        if (savedState.revealed_players) {
+                            // ... (this part loads the revealed players)
+                        }
+                    } else {
+                        // It's a new day or a new player!
+                        console.log("New day! Clearing old state.");
+                        guessHistory = {}; // Reset global history
+                        
+                        // Create a new, empty state for today
+                        const newState = {
+                            game_date: gameState.game_date,
+                            revealed_players: [],
+                            guess_history: {}
+                        };
+                        localStorage.setItem(STORAGE_KEY, JSON.stringify(newState));
+                    }
                     renderGame();
                 } catch (error) {
                     competitionText.textContent = "שגיאה בטעינת המשחק. נסה לרענן.";
@@ -777,9 +804,14 @@
                     const response = await fetch('/guess', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ slot_index: activeSlotIndex, player: currentGuess }) });
                     if (!response.ok) throw new Error(`Guess submission failed`);
                     const result = await response.json();
+                    const savedState = JSON.parse(localStorage.getItem(STORAGE_KEY));
                     if (result.feedback) {
                         const feedback = result.feedback.feedback;
                         guessHistory[activeSlotIndex].push({ guess: currentGuess, feedback: feedback });
+                        if(savedState) {
+                            savedState.guess_history = guessHistory;
+                            localStorage.setItem(STORAGE_KEY, JSON.stringify(savedState)); // <-- THIS LINE SAVES THE GUESS
+                        }
                         updateKeyboardStatus(currentGuess, feedback);
                         applyKeyboardColors();
                         displayFeedback(feedback, currentAttempt, currentGuess);
@@ -791,6 +823,13 @@
                         wordleGrid.appendChild(newEmptyRow);
                     } else {
                         gameState = result;
+                        if (savedState) {
+                            if (!savedState.revealed_players.includes(activeSlotIndex)) {
+                                savedState.revealed_players.push(activeSlotIndex);
+                            }
+                            savedState.guess_history = guessHistory;
+                            localStorage.setItem(STORAGE_KEY, JSON.stringify(savedState)); // <-- THIS LINE SAVES THE WIN
+                        }
                         renderGame();
                         closeModal();
                         if (result.is_finished) setTimeout(() => alert(result.message), 300);
