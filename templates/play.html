@@ -498,7 +498,20 @@
 
                         // 2. Apply revealed players to our new game state
                         if (savedState.revealed_players) {
-                            // ... (this part loads the revealed players)
+                            Object.keys(savedState.revealed_players).forEach(revealedIndex => {
+                                
+                                // Find the matching player in the fresh gameState
+                                const player = gameState.lineup.find(p => p.index == revealedIndex); // Use == for safety
+                                const savedData = savedState.revealed_players[revealedIndex];
+
+                                if (player && savedData) {
+                                    // This is the fix!
+                                    // We inject the saved name and image into the game state
+                                    player.is_revealed = true;
+                                    player.revealed_name = savedData.name;
+                                    player.player_img_url = savedData.img;
+                                }
+                            });
                         }
                     } else {
                         // It's a new day or a new player!
@@ -508,7 +521,7 @@
                         // Create a new, empty state for today
                         const newState = {
                             game_date: gameState.game_date,
-                            revealed_players: [],
+                            revealed_players: {},
                             guess_history: {}
                         };
                         localStorage.setItem(STORAGE_KEY, JSON.stringify(newState));
@@ -890,13 +903,30 @@
                         wordleGrid.appendChild(newEmptyRow);
                     } else {
                         gameState = result;
-                        if (savedState) {
-                            if (!savedState.revealed_players.includes(activeSlotIndex)) {
-                                savedState.revealed_players.push(activeSlotIndex);
+                        const revealedPlayer = gameState.lineup.find(p => p.index === activeSlotIndex);
+
+                        const savedState = JSON.parse(localStorage.getItem(STORAGE_KEY));
+                        
+                        // Make sure both objects exist
+                        if (savedState && revealedPlayer) {
+                            
+                            // Initialize 'revealed_players' as an object if it's new
+                            if (!savedState.revealed_players) {
+                                savedState.revealed_players = {};
                             }
+                            
+                            // Save the player's info, using their index as the key
+                            savedState.revealed_players[activeSlotIndex] = {
+                                name: revealedPlayer.revealed_name,
+                                img: revealedPlayer.player_img_url
+                            };
+                            
+                            // Also save the guess history
                             savedState.guess_history = guessHistory;
-                            localStorage.setItem(STORAGE_KEY, JSON.stringify(savedState)); // <-- THIS LINE SAVES THE WIN
+                            
+                            localStorage.setItem(STORAGE_KEY, JSON.stringify(savedState));
                         }
+                        
                         renderGame();
                         closeModal();
                         if (result.is_finished) setTimeout(() => alert(result.message), 300);
