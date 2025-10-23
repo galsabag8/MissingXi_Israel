@@ -149,17 +149,30 @@ def _get_game_data(match_obj:Match,target_side:str):
     }
 
 def start_new_game():
-    """Initializes a new game session with a random match lineup."""
-    match_obj,target_side = get_or_create_daily_match()
-    game_data = _get_game_data(match_obj,target_side)
+    today_str = datetime.date.today().isoformat()
+    
+    # 1. Check if a valid game for today is ALREADY in the session
+    game_data = session.get(GAME_SESSION_KEY)
+    
+    if game_data and game_data.get("today_date") == today_str:
+        # A game for today is already in memory, just return it
+        #print("Game for today found in session. Loading.")
+        return get_game_state()
+
+    # 2. No game in session, or it's an old game. Start a new one.
+    #print(f"No valid game in session. Starting new game for {today_str}")
+    match_obj, target_side = get_or_create_daily_match()
+    
+    # Re-fetch the game data from the DB
+    game_data = _get_game_data(match_obj, target_side)
     
     if "error" in game_data:
         return game_data
     
-    # Save the match and lineup details to the session
+    # Save the new game to the session
     session[GAME_SESSION_KEY] = game_data
     
-    # Initialize the exposed state: an array of False values matching the lineup size
+    # Initialize the exposed state
     session[EXPOSED_PLAYERS_KEY] = [False] * game_data['lineup_count'] 
     
     return get_game_state()

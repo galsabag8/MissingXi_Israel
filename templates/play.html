@@ -358,6 +358,44 @@
                 margin-top: 10px; /* Give it some space from the top */
             }
         }
+        #win-title {
+            font-size: 2.5rem;
+            color: var(--primary-color);
+            margin-top: 10px;
+            margin-bottom: 10px;
+        }
+
+        #share-button {
+            background-color: var(--feedback-correct);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 20px;
+            font-size: 1.1rem;
+            font-family: 'Poppins', 'Heebo', sans-serif;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            margin-top: 15px;
+        }
+        #share-button:hover {
+            background-color: #218838; /* Darker green */
+        }
+        #share-button i {
+            margin-left: 8px;
+        }
+
+        #countdown-container {
+            margin-top: 25px;
+            color: #555;
+        }
+        #countdown-container p {
+            margin: 0;
+        }
+        #countdown-timer {
+            font-size: 2rem;
+            color: #333;
+        }
 
         #wordle-grid { display: flex; flex-direction: column; gap: 5px; margin: 20px 0; }
         .wordle-row { display: flex; flex-direction: row-reverse; justify-content: center; gap: 4px; }
@@ -443,6 +481,24 @@
             </div>
             
         </div>
+        <div id="win-modal" class="modal-overlay">
+            <div class="modal-content-box" style="text-align: center;">
+                <span id="win-modal-close" class="modal-close-btn">&times;</span>
+                <h2 id="win-title">🎉 כל הכבוד! 🎉</h2>
+                <p>ניחשת את כל 11 השחקנים בהרכב!</p>
+                
+                <div id="share-container">
+                    <button id="share-button">
+                        <i class="fa-solid fa-share-nodes"></i> שתף תוצאה
+                    </button>
+                </div>
+                
+                <div id="countdown-container">
+                    <p>המשחק הבא בעוד:</p>
+                    <b id="countdown-timer">00:00:00</b>
+                </div>
+            </div>
+        </div>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -450,6 +506,11 @@
             const competitionText = document.getElementById('competition-text');
             const loaderOverlay = document.getElementById('loader-overlay');
             const STORAGE_KEY = 'dailyGameState';
+            const winModal = document.getElementById('win-modal');
+            const winModalClose = document.getElementById('win-modal-close');
+            const shareButton = document.getElementById('share-button');
+            const countdownTimer = document.getElementById('countdown-timer');
+            let countdownInterval;
             const teamText = document.getElementById('team-text');
             const modal = document.getElementById('guess-modal');
             const modalClose = document.getElementById('modal-close');
@@ -482,6 +543,87 @@
                 "red": "#FF0000"
             };
 
+            function startCountdown() {
+                // Clear any old timer
+                if (countdownInterval) clearInterval(countdownInterval);
+
+                countdownInterval = setInterval(() => {
+                    const now = new Date();
+                    const tomorrow = new Date(now);
+                    // Set to tomorrow at midnight
+                    tomorrow.setDate(now.getDate() + 1);
+                    tomorrow.setHours(0, 0, 0, 0);
+
+                    const diff = tomorrow.getTime() - now.getTime();
+
+                    const hours = Math.floor(diff / (1000 * 60 * 60));
+                    const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                    const secs = Math.floor((diff % (1000 * 60)) / 1000);
+
+                    countdownTimer.textContent = 
+                        `${hours.toString().padStart(2, '0')}:` +
+                        `${mins.toString().padStart(2, '0')}:` +
+                        `${secs.toString().padStart(2, '0')}`;
+                }, 1000);
+            }
+
+            function showWinModal() {
+                winModal.style.display = 'flex';
+                startCountdown();
+            }
+
+            function copyShareResults() {
+                // Count the total guesses
+                let totalGuesses = 0;
+                if (guessHistory) {
+                    Object.values(guessHistory).forEach(guesses => {
+                        totalGuesses += guesses.length;
+                    });
+                }
+                
+                const shareText = `ניחשתי את הרכב היום! 🎉\nסה"כ ניחושים: ${totalGuesses}\n\nhttps://missingxi-israel.onrender.com`;
+                
+                navigator.clipboard.writeText(shareText).then(() => {
+                    alert("התוצאה הועתקה! שתף עם חברים ⚽");
+                }).catch(err => {
+                    console.error("Failed to copy results: ", err);
+                    alert("שגיאה בהעתקת התוצאה.");
+                });
+            }
+            function copyShareResults() {
+                // ... (your existing share function) ...
+            }
+
+            // --- ADD THIS NEW FUNCTION ---
+            function checkIfGameWon() {
+                if (!gameState || !gameState.lineup) return false;
+                
+                // Check if every player in the lineup is revealed
+                return gameState.lineup.every(player => player.is_revealed);
+            }
+            function syncServerStateToLocalStorage(serverGameState) {
+                // This function aligns your browser's memory with the server's state
+                const newRevealedPlayers = {};
+                const newGuessHistory = { ...guessHistory }; // Keep local guess history
+
+                serverGameState.lineup.forEach(player => {
+                    if (player.is_revealed) {
+                        newRevealedPlayers[player.index] = {
+                            name: player.revealed_name,
+                            img: player.player_img_url
+                        };
+                    }
+                });
+
+                const newState = {
+                    game_date: serverGameState.match_date, // Use match_date from server
+                    revealed_players: newRevealedPlayers,
+                    guess_history: newGuessHistory // Preserve our typing history
+                };
+                
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(newState));
+            }
+
             async function startGame() {
                 try {
                     const response = await fetch('/start_game');
@@ -489,7 +631,7 @@
                     gameState = await response.json();
                     const savedState = JSON.parse(localStorage.getItem(STORAGE_KEY));
 
-                    if (savedState && savedState.game_date === gameState.game_date) {
+                    if (savedState && savedState.match_date === gameState.match_date) {
                         // We have progress from today!
                         console.log("Loading saved progress...");
                         
@@ -520,7 +662,7 @@
                         
                         // Create a new, empty state for today
                         const newState = {
-                            game_date: gameState.game_date,
+                            game_date: gameState.match_date,
                             revealed_players: {},
                             guess_history: {}
                         };
@@ -878,59 +1020,66 @@
             
             async function submitGuess() {
                 const player = gameState.lineup.find(p => p.index === activeSlotIndex);
-                //if (!player || currentAttempt >= MAX_ATTEMPTS || currentGuess.length !== player.guess_length) return;
                 if (!player || currentGuess.length !== player.guess_length) return;
+
                 try {
-                    const response = await fetch('/guess', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ slot_index: activeSlotIndex, player: currentGuess }) });
+                    const response = await fetch('/guess', { 
+                        method: 'POST', 
+                        headers: { 'Content-Type': 'application/json' }, 
+                        body: JSON.stringify({ slot_index: activeSlotIndex, player: currentGuess }) 
+                    });
+                    
                     if (!response.ok) throw new Error(`Guess submission failed`);
-                    const result = await response.json();
-                    const savedState = JSON.parse(localStorage.getItem(STORAGE_KEY));
+                    
+                    // The 'result' IS the new, full game state from your server
+                    const result = await response.json(); 
+
+                    if (result.error) {
+                        alert(`Server Error: ${result.error}`);
+                        return;
+                    }
+
+                    // --- THIS IS THE NEW, CORRECT LOGIC ---
+
+                    // 1. Update the entire game state. This fixes the "disappearing players" bug.
+                    gameState = result; 
+                    
+                    // 2. Check if the response was for an INCORRECT guess
                     if (result.feedback) {
-                        const feedback = result.feedback.feedback;
+                        const feedback = result.feedback.feedback; // Get the feedback array
+                        
+                        // Add to local JS history
                         guessHistory[activeSlotIndex].push({ guess: currentGuess, feedback: feedback });
-                        if(savedState) {
-                            savedState.guess_history = guessHistory;
-                            localStorage.setItem(STORAGE_KEY, JSON.stringify(savedState)); // <-- THIS LINE SAVES THE GUESS
-                        }
+                        
                         updateKeyboardStatus(currentGuess, feedback);
                         applyKeyboardColors();
                         displayFeedback(feedback, currentAttempt, currentGuess);
+                        
                         currentAttempt++;
                         currentGuess = "";
-                        /*if (currentAttempt >= MAX_ATTEMPTS) { alert('אין לך ניחושים נוספים!'); }*/
+
+                        // Add the next empty row
                         const nameParts = player.name_parts;
                         const newEmptyRow = createWordleRow(nameParts);
                         wordleGrid.appendChild(newEmptyRow);
+                    
                     } else {
-                        gameState = result;
-                        const revealedPlayer = gameState.lineup.find(p => p.index === activeSlotIndex);
-
-                        const savedState = JSON.parse(localStorage.getItem(STORAGE_KEY));
-                        
-                        // Make sure both objects exist
-                        if (savedState && revealedPlayer) {
-                            
-                            // Initialize 'revealed_players' as an object if it's new
-                            if (!savedState.revealed_players) {
-                                savedState.revealed_players = {};
-                            }
-                            
-                            // Save the player's info, using their index as the key
-                            savedState.revealed_players[activeSlotIndex] = {
-                                name: revealedPlayer.revealed_name,
-                                img: revealedPlayer.player_img_url
-                            };
-                            
-                            // Also save the guess history
-                            savedState.guess_history = guessHistory;
-                            
-                            localStorage.setItem(STORAGE_KEY, JSON.stringify(savedState));
-                        }
-                        
+                        // 3. This was a CORRECT guess
+                        // No extra logic needed! 'gameState' is already updated.
+                        // We just re-render and close the modal.
                         renderGame();
                         closeModal();
-                        if (result.is_finished) setTimeout(() => alert(result.message), 300);
                     }
+
+                    // 4. Always check for a win (your backend sets is_finished)
+                    if (result.is_finished) {
+                        setTimeout(showWinModal, 300);
+                    }
+
+                    // 5. Sync the server's state with localStorage
+                    // This makes your local progress match the server's session
+                    syncServerStateToLocalStorage(result);
+
                 } catch (error) {
                     console.error("Error submitting guess:", error);
                     alert("שגיאה בשליחת הניחוש. נסה שוב.");
@@ -1052,6 +1201,11 @@
             howToPlayClose.addEventListener('click', () => {
                 howToPlayModal.style.display = 'none';
             });
+            winModalClose.addEventListener('click', () => {
+                winModal.style.display = 'none';
+                if (countdownInterval) clearInterval(countdownInterval);
+            });
+            shareButton.addEventListener('click', copyShareResults);
 
             window.addEventListener('keydown', (e) => { 
                 if (e.key === "Escape") {
