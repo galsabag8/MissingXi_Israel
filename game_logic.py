@@ -4,6 +4,7 @@ from flask import session
 import datetime
 from sqlalchemy import func
 from models import TeamFormation, db, Match, MatchLineup, Player, Team,MatchEvent,DailyGame
+import re
 
 
 # Session Keys
@@ -278,6 +279,18 @@ def get_game_state(message: str = None):
     for i, player in enumerate(game_data['lineup']):
         is_revealed = bool(exposed[i])
         player_name = player['name']
+        name_parts_list = re.split(r"([ '])", player_name)
+        name_parts_filtered = [part for part in name_parts_list if len(part) > 0]
+
+        # 2. Create the "secure" parts
+        secure_name_parts = []
+        for part in name_parts_filtered:
+            if part == ' ' or part == "'":
+                secure_name_parts.append(part)
+            else:
+                secure_name_parts.append("X" * len(part)) # Replaces "Lionel" with "XXXXXX"
+
+        # 3. Get the guess_length
         apostrophe_indices = [idx for idx, char in enumerate(player_name) if char == "'"]
 
         
@@ -286,7 +299,7 @@ def get_game_state(message: str = None):
             "position": player['position'],
             "is_revealed": is_revealed,
             # If revealed, show the name, ID, and image. If not, mask the name length.
-            "name": player_name,
+            "name_parts": secure_name_parts,
             "revealed_name": player['name'] if is_revealed else None,
             "player_img_url": player['img_url'] if is_revealed else None,
             "player_stats" : player['player_stats'],

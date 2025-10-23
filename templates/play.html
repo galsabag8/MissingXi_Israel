@@ -819,17 +819,17 @@
             function openGuessModal(slotIndex) {
                 activeSlotIndex = slotIndex;
                 const player = gameState.lineup.find(p => p.index === slotIndex);
-                if (!player || typeof player.name !== 'string') return;
+                if (!player) return;
                 
                 keyboardLetterStatus = {};
                 //currentAttempt = 0;
                 currentGuess = "";
 
-                const playerName = player.name;
+                
                 modalTitle.textContent = `נחש את השחקן (עמדה: ${player.position})`;
                 wordleGrid.innerHTML = '';
                 
-                const nameParts = playerName.split(/([ '])/).filter(part => part.length > 0);
+                const nameParts = player.name_parts;
                 /*
                 for (let i = 0; i < MAX_ATTEMPTS; i++) {
                     const row = document.createElement('div');
@@ -898,7 +898,7 @@
                         currentAttempt++;
                         currentGuess = "";
                         /*if (currentAttempt >= MAX_ATTEMPTS) { alert('אין לך ניחושים נוספים!'); }*/
-                        const nameParts = player.name.split(/([ '])/).filter(part => part.length > 0);
+                        const nameParts = player.name_parts;
                         const newEmptyRow = createWordleRow(nameParts);
                         wordleGrid.appendChild(newEmptyRow);
                     } else {
@@ -1007,7 +1007,7 @@
                     keyEl.addEventListener('click', () => {
                         const player = gameState.lineup.find(p => p.index === activeSlotIndex);
                         if (!player) return;
-                        const maxLen = player.name.replace(/ /g, '').length;
+                        const maxLen = player.guess_length;
                         if (currentGuess.length < maxLen) {
                             currentGuess += key;
                             updateWordleGrid();
@@ -1038,7 +1038,7 @@
                     event.preventDefault();
                     const player = gameState.lineup.find(p => p.index === activeSlotIndex);
                     if (!player) return;
-                    const maxLen = player.name.replace(/ /g, '').length;
+                    const maxLen = player.guess_length;
                     if (currentGuess.length < maxLen) { currentGuess += key; updateWordleGrid(); }
                 } else if (englishAlphabet.includes(key.toLowerCase())) {
                     event.preventDefault(); showLanguageFeedback();
